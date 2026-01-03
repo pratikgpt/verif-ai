@@ -17,7 +17,8 @@ export interface UseUploadReturn {
   progress: number
   error: string | null
   videoUrl: string | null
-  upload: (blob: Blob, sessionId: string) => Promise<void>
+  reportId: string | null
+  upload: (blob: Blob, sessionId: string, livenessCode: string) => Promise<void>
   retry: () => void
   cancel: () => void
   reset: () => void
@@ -42,19 +43,22 @@ export function useUpload(): UseUploadReturn {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [reportId, setReportId] = useState<string | null>(null)
 
-  // Store blob and sessionId for retry
+  // Store blob, sessionId, and livenessCode for retry
   const blobRef = useRef<Blob | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+  const livenessCodeRef = useRef<string | null>(null)
   const cancelTokenRef = useRef<CancelTokenSource | null>(null)
 
   /**
-   * Upload video to backend
+   * Upload video to backend with liveness code
    */
-  const upload = useCallback(async (blob: Blob, sessionId: string) => {
+  const upload = useCallback(async (blob: Blob, sessionId: string, livenessCode: string) => {
     // Store for retry
     blobRef.current = blob
     sessionIdRef.current = sessionId
+    livenessCodeRef.current = livenessCode
 
     setStatus('uploading')
     setProgress(0)
@@ -69,9 +73,10 @@ export function useUpload(): UseUploadReturn {
         type: 'video/webm',
       })
 
-      // Create FormData
+      // Create FormData with liveness code
       const formData = new FormData()
       formData.append('file', file)  // Backend expects 'file', not 'video'
+      formData.append('liveness_code', livenessCode)  // Send liveness code for AI verification
 
       // Upload to production backend
       const response = await axios.post(
@@ -95,6 +100,7 @@ export function useUpload(): UseUploadReturn {
       )
 
       setVideoUrl(response.data.video_url)
+      setReportId(response.data.report_id || null)
       setStatus('success')
     } catch (err) {
       if (axios.isCancel(err)) {
@@ -121,8 +127,8 @@ export function useUpload(): UseUploadReturn {
    * Retry failed upload
    */
   const retry = useCallback(() => {
-    if (blobRef.current && sessionIdRef.current) {
-      upload(blobRef.current, sessionIdRef.current)
+    if (blobRef.current && sessionIdRef.current && livenessCodeRef.current) {
+      upload(blobRef.current, sessionIdRef.current, livenessCodeRef.current)
     }
   }, [upload])
 
@@ -145,8 +151,10 @@ export function useUpload(): UseUploadReturn {
     setProgress(0)
     setError(null)
     setVideoUrl(null)
+    setReportId(null)
     blobRef.current = null
     sessionIdRef.current = null
+    livenessCodeRef.current = null
   }, [])
 
   return {
@@ -154,6 +162,7 @@ export function useUpload(): UseUploadReturn {
     progress,
     error,
     videoUrl,
+    reportId,
     upload,
     retry,
     cancel,

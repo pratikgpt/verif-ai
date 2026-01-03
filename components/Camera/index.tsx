@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect } from 'react'
-import { Video, Circle, Square, RotateCcw, AlertCircle, Loader2 } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Video, Circle, Square, RotateCcw, AlertCircle, Loader2, Volume2 } from 'lucide-react'
 import { useCamera, CameraStatus } from '@/hooks/useCamera'
 
 interface CameraProps {
-  onRecordingComplete: (blob: Blob) => void
+  onRecordingComplete: (blob: Blob, livenessCode: string) => void
   recordingDuration?: number
+}
+
+/**
+ * Generate a random 4-digit liveness code
+ */
+function generateLivenessCode(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString()
 }
 
 /**
@@ -34,12 +41,22 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
     resetCamera,
   } = useCamera()
 
-  // When recording is complete, notify parent
+  // Liveness code - generated fresh for each recording
+  const [livenessCode, setLivenessCode] = useState<string>('')
+
+  // Generate new code when starting recording
+  const handleStartRecording = () => {
+    const code = generateLivenessCode()
+    setLivenessCode(code)
+    startRecording(recordingDuration)
+  }
+
+  // When recording is complete, notify parent with liveness code
   useEffect(() => {
-    if (status === 'recorded' && recordedBlob) {
-      onRecordingComplete(recordedBlob)
+    if (status === 'recorded' && recordedBlob && livenessCode) {
+      onRecordingComplete(recordedBlob, livenessCode)
     }
-  }, [status, recordedBlob, onRecordingComplete])
+  }, [status, recordedBlob, livenessCode, onRecordingComplete])
 
   // Render error state
   if (status === 'error') {
@@ -113,6 +130,23 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
           </div>
         )}
 
+        {/* LIVENESS CODE - The Killer Feature */}
+        {status === 'recording' && livenessCode && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent pt-8 pb-4 px-4">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Volume2 className="w-5 h-5 text-yellow-400 animate-pulse" />
+                <span className="text-yellow-400 text-sm font-medium uppercase tracking-wide">
+                  Read this code out loud
+                </span>
+              </div>
+              <div className="text-5xl font-bold font-mono text-white tracking-[0.3em] drop-shadow-lg">
+                {livenessCode}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Recorded Badge */}
         {status === 'recorded' && (
           <div className="absolute top-4 left-4 bg-green-600 text-white px-3 py-1 rounded-full">
@@ -125,7 +159,7 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
       <div className="mt-4 flex justify-center gap-4">
         {status === 'previewing' && (
           <button
-            onClick={() => startRecording(recordingDuration)}
+            onClick={handleStartRecording}
             className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700
                        flex items-center gap-2 font-medium"
           >

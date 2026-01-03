@@ -36,6 +36,7 @@ export default function VerifyPage() {
     progress: uploadProgress,
     error: uploadError,
     videoUrl,
+    reportId,
     upload,
     retry: retryUpload,
     cancel: cancelUpload,
@@ -46,6 +47,7 @@ export default function VerifyPage() {
   const [blockReason, setBlockReason] = useState<BlockReason>('denied')
   const [blockMessage, setBlockMessage] = useState<string>('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
+  const [livenessCode, setLivenessCode] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
 
@@ -117,24 +119,26 @@ export default function VerifyPage() {
     validateLocation()
   }
 
-  // Handle recording complete
-  const handleRecordingComplete = useCallback((blob: Blob) => {
+  // Handle recording complete (with liveness code)
+  const handleRecordingComplete = useCallback((blob: Blob, code: string) => {
     setRecordedBlob(blob)
+    setLivenessCode(code)
     setFlowState('recorded')
   }, [])
 
   // Reset to record again
   const handleRecordAgain = () => {
     setRecordedBlob(null)
+    setLivenessCode('')
     resetUpload()
     setFlowState('ready')
   }
 
-  // Start upload
+  // Start upload (with liveness code)
   const handleUpload = () => {
-    if (recordedBlob) {
+    if (recordedBlob && livenessCode) {
       setFlowState('uploading')
-      upload(recordedBlob, sessionId)
+      upload(recordedBlob, sessionId, livenessCode)
     }
   }
 
@@ -223,6 +227,9 @@ export default function VerifyPage() {
 
   // State 7: Upload complete - submission success
   if (flowState === 'submitted') {
+    // Generate display report number (use backend reportId or fallback to session-based number)
+    const displayReportId = reportId || `${sessionId.slice(0, 4).toUpperCase()}`
+
     return (
       <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
@@ -234,18 +241,25 @@ export default function VerifyPage() {
             Audit Submitted
           </h1>
 
+          {/* Report Number - The key info from spec */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <p className="text-green-700 font-medium">
+              Report #{displayReportId} Generated
+            </p>
+          </div>
+
           <p className="text-gray-600 mb-6">
             Your verification video has been uploaded successfully.
             The AI will analyze it shortly.
           </p>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
             <p className="text-sm text-gray-500 mb-1">Session ID</p>
             <p className="font-mono text-gray-900">{sessionId}</p>
           </div>
 
           {position && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
               <p className="text-sm text-gray-500 mb-1">Verified Location</p>
               <p className="font-mono text-sm text-gray-900">
                 {position.latitude.toFixed(6)}, {position.longitude.toFixed(6)}
@@ -348,6 +362,16 @@ export default function VerifyPage() {
                   </span>
                 </div>
 
+                {/* Liveness Code Confirmation */}
+                {livenessCode && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-600 mb-1">Liveness Code Spoken:</p>
+                    <p className="text-xl font-mono font-bold text-blue-800 tracking-wider">
+                      {livenessCode}
+                    </p>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-3">
                   <button
@@ -378,9 +402,9 @@ export default function VerifyPage() {
             <h3 className="text-sm font-medium text-blue-800 mb-2">Recording Instructions</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>1. Click "Enable Camera" to start</li>
-              <li>2. Pan around to show the warehouse</li>
-              <li>3. Click "Start Recording" for a 10-second video</li>
-              <li>4. Keep the camera steady while recording</li>
+              <li>2. Click "Start Recording" for a 10-second video</li>
+              <li>3. <strong>Read the 4-digit code out loud</strong> when it appears</li>
+              <li>4. Pan around to show the warehouse and stock</li>
             </ul>
           </div>
         )}
