@@ -250,7 +250,7 @@ export default function VerifyPage() {
 
           <p className="text-gray-600 mb-6">
             Your verification video has been uploaded successfully.
-            The AI will analyze it shortly.
+            The system will analyze it shortly.
           </p>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">

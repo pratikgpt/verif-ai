@@ -76,7 +76,7 @@ export function useUpload(): UseUploadReturn {
       // Create FormData with liveness code
       const formData = new FormData()
       formData.append('file', file)  // Backend expects 'file', not 'video'
-      formData.append('liveness_code', livenessCode)  // Send liveness code for AI verification
+      formData.append('liveness_code', livenessCode)  // Send liveness code for backend verification
 
       // Upload to production backend
       const response = await axios.post(

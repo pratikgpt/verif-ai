@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm)",
-      "Bash(move \"VerifAI \\(The _Unbribable_ Inspector\\).pdf\" \"c:\\\\Users\\\\pratik\\\\Documents\\\\verifai-spec.pdf\")"
+      "Bash(cat:*)"
     ]
   }
 }
