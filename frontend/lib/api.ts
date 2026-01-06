@@ -26,6 +26,7 @@ export interface InitiateSessionResponse {
   reason?: string
   session_id?: string
   distance?: number
+  verification_code?: string  // Backend-generated liveness code
 }
 
 /**

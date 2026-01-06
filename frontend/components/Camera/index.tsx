@@ -1,19 +1,13 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect } from 'react'
 import { Video, Circle, Square, RotateCcw, AlertCircle, Loader2, Volume2 } from 'lucide-react'
-import { useCamera, CameraStatus } from '@/hooks/useCamera'
+import { useCamera } from '@/hooks/useCamera'
 
 interface CameraProps {
-  onRecordingComplete: (blob: Blob, livenessCode: string) => void
+  onRecordingComplete: (blob: Blob) => void
   recordingDuration?: number
-}
-
-/**
- * Generate a random 4-digit liveness code
- */
-function generateLivenessCode(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString()
+  verificationCode: string  // Received from backend via /initiate-session
 }
 
 /**
@@ -27,8 +21,10 @@ function generateLivenessCode(): string {
  * 2. Live preview shows (no recording yet)
  * 3. User clicks "Start Recording" → 10-second countdown
  * 4. Recording auto-stops → blob passed to parent
+ *
+ * Liveness code is received from backend (not generated here)
  */
-export default function Camera({ onRecordingComplete, recordingDuration = 10 }: CameraProps) {
+export default function Camera({ onRecordingComplete, recordingDuration = 10, verificationCode }: CameraProps) {
   const {
     status,
     videoRef,
@@ -41,22 +37,17 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
     resetCamera,
   } = useCamera()
 
-  // Liveness code - generated fresh for each recording
-  const [livenessCode, setLivenessCode] = useState<string>('')
-
-  // Generate new code when starting recording
+  // Start recording (liveness code comes from backend via props)
   const handleStartRecording = () => {
-    const code = generateLivenessCode()
-    setLivenessCode(code)
     startRecording(recordingDuration)
   }
 
-  // When recording is complete, notify parent with liveness code
+  // When recording is complete, notify parent with blob
   useEffect(() => {
-    if (status === 'recorded' && recordedBlob && livenessCode) {
-      onRecordingComplete(recordedBlob, livenessCode)
+    if (status === 'recorded' && recordedBlob) {
+      onRecordingComplete(recordedBlob)
     }
-  }, [status, recordedBlob, livenessCode, onRecordingComplete])
+  }, [status, recordedBlob, onRecordingComplete])
 
   // Render error state
   if (status === 'error') {
@@ -130,8 +121,8 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
           </div>
         )}
 
-        {/* LIVENESS CODE - The Killer Feature */}
-        {status === 'recording' && livenessCode && (
+        {/* VERIFICATION CODE - The Killer Feature */}
+        {status === 'recording' && verificationCode && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent pt-8 pb-4 px-4">
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
@@ -141,7 +132,7 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10 }: 
                 </span>
               </div>
               <div className="text-5xl font-bold font-mono text-white tracking-[0.3em] drop-shadow-lg">
-                {livenessCode}
+                {verificationCode}
               </div>
             </div>
           </div>

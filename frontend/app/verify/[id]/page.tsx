@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { Shield, MapPin, CheckCircle, Loader2, Upload, Video, RefreshCw, Wifi } from 'lucide-react'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -47,11 +47,14 @@ export default function VerifyPage() {
   const [blockReason, setBlockReason] = useState<BlockReason>('denied')
   const [blockMessage, setBlockMessage] = useState<string>('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
-  const [livenessCode, setLivenessCode] = useState<string>('')
+  const [verificationCode, setVerificationCode] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
 
-  // Handle GPS permission result
+  // Prevent multiple /initiate-session calls per session
+  const validatedSessionRef = useRef<string | null>(null)
+
+  // Handle GPS permission result (validate once per session)
   useEffect(() => {
     if (geoStatus === 'denied') {
       setBlockReason('denied')
@@ -60,10 +63,11 @@ export default function VerifyPage() {
       setBlockReason('error')
       setBlockMessage(geoError || 'Unknown error')
       setFlowState('blocked')
-    } else if (geoStatus === 'granted' && position) {
+    } else if (geoStatus === 'granted' && position && validatedSessionRef.current !== sessionId) {
+      validatedSessionRef.current = sessionId
       validateLocation()
     }
-  }, [geoStatus, position])
+  }, [geoStatus, position, sessionId])
 
   // Handle upload status changes
   useEffect(() => {
@@ -80,6 +84,11 @@ export default function VerifyPage() {
     setValidationError(null)
     setIsRetrying(false)
 
+    // Debug logging
+    console.log('=== Calling /initiate-session ===')
+    console.log('Session ID:', sessionId)
+    console.log('Position:', position.latitude, position.longitude)
+
     try {
       const response = await initiateSession(
         sessionId,
@@ -88,7 +97,17 @@ export default function VerifyPage() {
         position.accuracy
       )
 
+      // Debug logging
+      console.log('=== Response from backend ===')
+      console.log('Response:', response)
+      console.log('Verification code:', response.verification_code)
+
       if (response.allowed) {
+        // Store verification code from backend
+        if (response.verification_code) {
+          setVerificationCode(response.verification_code)
+          console.log('Verification code set to:', response.verification_code)
+        }
         setFlowState('ready')
       } else {
         setBlockReason('too_far')
@@ -119,26 +138,24 @@ export default function VerifyPage() {
     validateLocation()
   }
 
-  // Handle recording complete (with liveness code)
-  const handleRecordingComplete = useCallback((blob: Blob, code: string) => {
+  // Handle recording complete (liveness code already from backend)
+  const handleRecordingComplete = useCallback((blob: Blob) => {
     setRecordedBlob(blob)
-    setLivenessCode(code)
     setFlowState('recorded')
   }, [])
 
-  // Reset to record again
+  // Reset to record again (keep liveness code from backend)
   const handleRecordAgain = () => {
     setRecordedBlob(null)
-    setLivenessCode('')
     resetUpload()
     setFlowState('ready')
   }
 
-  // Start upload (with liveness code)
+  // Start upload (with verification code)
   const handleUpload = () => {
-    if (recordedBlob && livenessCode) {
+    if (recordedBlob && verificationCode) {
       setFlowState('uploading')
-      upload(recordedBlob, sessionId, livenessCode)
+      upload(recordedBlob, sessionId, verificationCode)
     }
   }
 
@@ -335,6 +352,7 @@ export default function VerifyPage() {
               <Camera
                 onRecordingComplete={handleRecordingComplete}
                 recordingDuration={10}
+                verificationCode={verificationCode}
               />
             )}
 
@@ -362,12 +380,12 @@ export default function VerifyPage() {
                   </span>
                 </div>
 
-                {/* Liveness Code Confirmation */}
-                {livenessCode && (
+                {/* Verification Code Confirmation */}
+                {verificationCode && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-600 mb-1">Liveness Code Spoken:</p>
+                    <p className="text-xs text-blue-600 mb-1">Verification Code Spoken:</p>
                     <p className="text-xl font-mono font-bold text-blue-800 tracking-wider">
-                      {livenessCode}
+                      {verificationCode}
                     </p>
                   </div>
                 )}

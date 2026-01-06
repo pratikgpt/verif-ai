@@ -18,7 +18,7 @@ export interface UseUploadReturn {
   error: string | null
   videoUrl: string | null
   reportId: string | null
-  upload: (blob: Blob, sessionId: string, livenessCode: string) => Promise<void>
+  upload: (blob: Blob, sessionId: string, verificationCode: string) => Promise<void>
   retry: () => void
   cancel: () => void
   reset: () => void
@@ -45,20 +45,20 @@ export function useUpload(): UseUploadReturn {
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [reportId, setReportId] = useState<string | null>(null)
 
-  // Store blob, sessionId, and livenessCode for retry
+  // Store blob, sessionId, and verificationCode for retry
   const blobRef = useRef<Blob | null>(null)
   const sessionIdRef = useRef<string | null>(null)
-  const livenessCodeRef = useRef<string | null>(null)
+  const verificationCodeRef = useRef<string | null>(null)
   const cancelTokenRef = useRef<CancelTokenSource | null>(null)
 
   /**
-   * Upload video to backend with liveness code
+   * Upload video to backend with verification code
    */
-  const upload = useCallback(async (blob: Blob, sessionId: string, livenessCode: string) => {
+  const upload = useCallback(async (blob: Blob, sessionId: string, verificationCode: string) => {
     // Store for retry
     blobRef.current = blob
     sessionIdRef.current = sessionId
-    livenessCodeRef.current = livenessCode
+    verificationCodeRef.current = verificationCode
 
     setStatus('uploading')
     setProgress(0)
@@ -73,10 +73,10 @@ export function useUpload(): UseUploadReturn {
         type: 'video/webm',
       })
 
-      // Create FormData with liveness code
+      // Create FormData with verification code
       const formData = new FormData()
       formData.append('file', file)  // Backend expects 'file', not 'video'
-      formData.append('liveness_code', livenessCode)  // Send liveness code for backend verification
+      formData.append('verification_code', verificationCode)  // Send verification code for backend verification
 
       // Upload to production backend
       const response = await axios.post(
@@ -127,8 +127,8 @@ export function useUpload(): UseUploadReturn {
    * Retry failed upload
    */
   const retry = useCallback(() => {
-    if (blobRef.current && sessionIdRef.current && livenessCodeRef.current) {
-      upload(blobRef.current, sessionIdRef.current, livenessCodeRef.current)
+    if (blobRef.current && sessionIdRef.current && verificationCodeRef.current) {
+      upload(blobRef.current, sessionIdRef.current, verificationCodeRef.current)
     }
   }, [upload])
 
@@ -154,7 +154,7 @@ export function useUpload(): UseUploadReturn {
     setReportId(null)
     blobRef.current = null
     sessionIdRef.current = null
-    livenessCodeRef.current = null
+    verificationCodeRef.current = null
   }, [])
 
   return {
