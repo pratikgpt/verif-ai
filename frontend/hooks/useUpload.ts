@@ -25,9 +25,9 @@ export interface UseUploadReturn {
 }
 
 /**
- * Production API URL
+ * Production API URL - Uses same env var as api.ts for consistency
  */
-const API_BASE_URL = 'https://verifai-lrw5.onrender.com'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verifai-lrw5.onrender.com'
 
 /**
  * useUpload Hook - PRODUCTION
@@ -100,7 +100,8 @@ export function useUpload(): UseUploadReturn {
       )
 
       setVideoUrl(response.data.video_url)
-      setReportId(response.data.report_id || null)
+      // Backend uses session_id (case_id) as the report identifier, not a separate report_id
+      setReportId(sessionId)
       setStatus('success')
     } catch (err) {
       if (axios.isCancel(err)) {

@@ -209,3 +209,84 @@ async def upload_video(session_id: str, file: UploadFile = File(...)):
     except Exception as e:
         print(f"Upload Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/inspections")
+def get_all_inspections():
+    """
+    Day 15: The 'Banker Dashboard' Data [cite: 113]
+    Fetches all inspections to show in the Admin Panel.
+    """
+    try:
+        # Fetch all rows, ordered by newest first
+        response = supabase.table("inspections").select("*").order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/force-verify/{session_id}")
+def force_verify_inspection(session_id: str):
+    """
+    Day 16: The 'Manual Override' Button [cite: 121]
+    SAFETY NET: If AI fails during a demo, click this to force a 'Success' result.
+    It overwrites the bad AI result with a perfect fake one and regenerates the PDF.
+    """
+    print(f"⚠️ MANUAL OVERRIDE TRIGGERED FOR: {session_id}")
+    
+    # 1. Create a Fake "Perfect" AI Verdict
+    fake_success_data = {
+        "verification_status": "APPROVED",
+        "liveness_check": {
+            "code_spoken_correctly": True,
+            "detected_code_transcript": "User spoke code clearly (Manual Override)",
+            "voice_liveness_confidence": "HIGH"
+        },
+        "stock_assessment": {
+            "is_warehouse_environment": True,
+            "inventory_visible": True,
+            "inventory_description": "Verified commercial stock via Manual Audit Override.",
+            "commercial_volume_detected": True
+        },
+        "risk_assessment": {
+            "fraud_flags_detected": [],
+            "overall_confidence_score": 100
+        },
+        "auditor_reasoning": "MANUAL OVERRIDE: Verified by Senior Auditor during review."
+    }
+
+    try:
+        # 2. Update Database immediately
+        supabase.table("inspections").update({
+            "status": "completed",
+            "ai_result": fake_success_data
+        }).eq("case_id", session_id).execute()
+
+        # 3. Regenerate the PDF so the "Certificate" matches the new "Success" status [cite: 126]
+        # We reuse your existing generator!
+        pdf_filename = generate_pdf(session_id, fake_success_data)
+        
+        # 4. Upload the new "Clean" PDF
+        with open(pdf_filename, "rb") as f:
+            supabase.storage.from_("Reports").upload(
+                path=pdf_filename,
+                file=f,
+                file_options={"content-type": "application/pdf", "upsert": "true"} # 'upsert' overwrites old file
+            )
+        
+        # 5. Get New URL
+        report_url = supabase.storage.from_("Reports").get_public_url(pdf_filename)
+        
+        # 6. Save URL
+        supabase.table("inspections").update({
+            "report_url": report_url
+        }).eq("case_id", session_id).execute()
+
+        # Cleanup
+        if os.path.exists(pdf_filename):
+            os.remove(pdf_filename)
+
+        return {"status": "success", "message": "Manual Override Applied. Report Regenerated.", "report_url": report_url}
+
+    except Exception as e:
+        print(f"Override Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

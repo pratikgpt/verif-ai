@@ -84,11 +84,6 @@ export default function VerifyPage() {
     setValidationError(null)
     setIsRetrying(false)
 
-    // Debug logging
-    console.log('=== Calling /initiate-session ===')
-    console.log('Session ID:', sessionId)
-    console.log('Position:', position.latitude, position.longitude)
-
     try {
       const response = await initiateSession(
         sessionId,
@@ -97,16 +92,10 @@ export default function VerifyPage() {
         position.accuracy
       )
 
-      // Debug logging
-      console.log('=== Response from backend ===')
-      console.log('Response:', response)
-      console.log('Verification code:', response.verification_code)
-
       if (response.allowed) {
         // Store verification code from backend
         if (response.verification_code) {
           setVerificationCode(response.verification_code)
-          console.log('Verification code set to:', response.verification_code)
         }
         setFlowState('ready')
       } else {
