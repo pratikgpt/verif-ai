@@ -1,3 +1,4 @@
+
 import os
 import time
 import requests
@@ -9,13 +10,13 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 
-# 2. Configure Client (The New Way)
-# We initialize a single client object that handles everything
+# 2. Configure Client
 client = genai.Client(api_key=api_key)
 
-def analyze_video(video_url, expected_code):
+def analyze_video(video_url, expected_code, product_name="General Stock"):
     """
     Downloads video from Supabase -> Sends to Gemini -> Returns JSON Verdict
+    Now supports DYNAMIC Product Verification (Rice, Electronics, etc.)
     """
     print(f"Downloading video from: {video_url}...")
     temp_filename = f"temp_{int(time.time())}.mp4"
@@ -30,81 +31,72 @@ def analyze_video(video_url, expected_code):
         
         print("Uploading to Gemini...")
         
-        # B. Upload to Gemini (New SDK Syntax)
-        # client.files.upload returns a file object we can pass directly to the model
+        # B. Upload to Gemini
         video_file = client.files.upload(file=temp_filename)
         
         # C. Wait for Processing
-        # The new SDK simplifies this, but we still check state for safety
         while video_file.state == "PROCESSING":
             print(".", end="", flush=True)
-            time.sleep(2)
+            time.sleep(1)
             video_file = client.files.get(name=video_file.name)
 
         if video_file.state == "FAILED":
             raise ValueError("Gemini failed to process video file.")
 
-        print("\nAI Analyzing with Gemini 2.5 Flash...")
+        print(f"\nAI Analyzing '{product_name}' with Gemini...")
 
-        # D. The Model & Prompt
-        # We use the new standard model 'gemini-2.0-flash'
+        # D. The Dynamic Prompt
         prompt = f"""
         ### SYSTEM ROLE:
-        You are a Senior Risk Auditor for a Tier-1 NBFC. Your job is to approve or reject a 'Packing Credit' loan disbursement based on a video inspection. 
-        You are STRICT, SUSPICIOUS, and DETAIL-ORIENTED. Zero tolerance for fraud.
-
+        You are a Senior Risk Auditor for physical stock verification. Your job is to verify a shipment of: **{product_name}**.
+        
         ### INPUT DATA:
         - Verification Type: Pre-Shipment Packing Credit Inspection
         - Expected Liveness Code: "{expected_code}"
+        - Expected Product: "{product_name}"
 
         ### INSTRUCTIONS:
+        **STEP 1: AUDIO LIVENESS**
+        - Verify the user speaks the code "{expected_code}".
+        - Listen for robotic voices or background echoes.
 
-        **STEP 1: AUDIO LIVENESS & SECURITY CHECK (CRITICAL)**
-        - Listen to the user's voice. They MUST speak the code "{expected_code}".
-        - **Strict Matching:** If the expected code is "9435" and they say "9430", FAIL the inspection immediately.
-        - **Anti-Spoofing:** Listen for robotic voices, text-to-speech, or background echoes that suggest re-recording.
-        
+        **STEP 2: PRODUCT VERIFICATION (CRITICAL)**
+        - **Visual Confirmation:** Do you see items that look like {product_name}?
+        - **Packaging Check:** - If {product_name} is "Rice/Grains", look for gunny bags or sacks.
+        - If {product_name} is "Electronics", look for branded cardboard boxes.
+        - check there should not be mismatch of products 
 
-        **STEP 2: STOCK & INVENTORY VERIFICATION (The Collateral)**
-        - "Packing Credit" implies goods ready for shipment.
-        - **Scan the Room:** Do not just look for "boxes". Look for *commercial inventory*.
-            - Are there pallets? 
-            - Is there industrial racking? 
-            - Are the goods shrink-wrapped or sealed?
-        - **Quantity Check:** Is this a legitimate warehouse/storage volume, or just a few sample boxes in an office corner? (We need VOLUME).
 
-        **STEP 3: FRAUD INDICATORS**
-        - Look for computer screens displaying the code (the user should be reading from memory or a sticky note, not a screen recording).
-        - Check for "Staged Environments" (e.g., empty cardboard boxes that look too light).
+        **STEP 3: CONDITION CHECK**
+        - Check stock is available
+        - Inspect for damage, rust, dust, or spoilage briefly.
+        - Check if the stock looks "dead" (undisturbed for months).
 
-        ### OUTPUT FORMAT:
-        Return a valid JSON object ONLY. Do not include markdown formatting or explanations outside the JSON.
-
+        ### OUTPUT FORMAT (JSON ONLY):
         {{
-        "verification_status": "APPROVED" | "REJECTED" | "MANUAL_REVIEW",
-        "liveness_check": {{
-            "code_spoken_correctly": boolean,
-            "detected_code_transcript": "string",
-            "voice_liveness_confidence": "HIGH" | "LOW"
-        }},
-        "stock_assessment": {{
-            "is_warehouse_environment": boolean,
-            "inventory_visible": boolean,
-            "inventory_description": "Brief description (e.g., 'Stacked electronics boxes on pallets')",
-            "commercial_volume_detected": boolean
-        }},
-        "risk_assessment": {{
-            "fraud_flags_detected": ["List specific risks, e.g., 'User reading from screen', 'Low light'"],
-            "overall_confidence_score": 0-100
-        }},
-        "auditor_reasoning": "One sentence summary of why you approved/rejected."
+            "verification_status": "APPROVED" | "REJECTED" | "MANUAL_REVIEW",
+            "liveness_check": {{ "code_spoken_correctly": boolean, "voice_liveness_confidence": "HIGH" | "LOW" }},
+            "product_verification": {{
+                "matches_expected_product": boolean,
+                "visual_description": "string (e.g. 'Saw white grains in open sack')",
+                "packaging_type": "string"
+            }},
+            "stock_assessment": {{
+                "commercial_volume_detected": boolean,
+                "condition": "Good" | "Damaged" | "Dusty"
+            }},
+            "risk_assessment": {{ "fraud_flags_detected": [], "overall_confidence_score": 0-100 }},
+            "auditor_reasoning": "string: One sentence summary of why you approved/rejected."
+            
         }}
         """
-        
-        # E. Generate Content (New Syntax)
+
+        # E. Generate Content
         try:
+            
+            # If you have access to 2.0 or newer, change this string.
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-2.5-flash', 
                 contents=[
                     types.Content(
                         role="user",
@@ -121,7 +113,7 @@ def analyze_video(video_url, expected_code):
             
             print(f"AI Response Received: {response.text[:50]}...") 
             
-            # Clean up JSON
+            # Clean up JSON (Remove markdown backticks if present)
             clean_json = response.text.replace("```json", "").replace("```", "").strip()
             
             # Cleanup Local File
@@ -131,7 +123,7 @@ def analyze_video(video_url, expected_code):
             return clean_json
 
         except Exception as e:
-            print(f"CRITICAL AI ERROR during generation: {e}")
+            print(f"CRITICAL AI ERROR: {e}")
             return {"error": f"AI Generation Failed: {str(e)}"}
 
     except Exception as e:
@@ -145,9 +137,10 @@ def analyze_video(video_url, expected_code):
 if __name__ == "__main__":
     print("Testing Gemini Connection...")
     try:
+        # Simple text test
         response = client.models.generate_content(
             model='gemini-2.5-flash', 
-            contents='Reply "Gemini 2.5 is Alive" if you hear me.'
+            contents='Reply "Gemini is Online" if you hear me.'
         )
         print(response.text)
     except Exception as e:

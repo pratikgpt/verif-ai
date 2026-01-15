@@ -9,10 +9,16 @@ import {
   FileText,
   RefreshCw,
   BarChart3,
-  Clock
+  Clock,
+  Plus,
+  X,
+  MapPin,
+  Package,
+  Building2,
+  Copy
 } from 'lucide-react';
 import InspectionTable from '@/components/Dashboard/InspectionTable';
-import { getInspections, forceVerify, Inspection } from '@/lib/api';
+import { getInspections, forceVerify, createInspection, Inspection, CreateInspectionRequest } from '@/lib/api';
 
 // Mock data for when backend is unavailable
 const MOCK_INSPECTIONS: Inspection[] = [
@@ -114,6 +120,19 @@ export default function AdminDashboard() {
   const [forceVerifyLoading, setForceVerifyLoading] = useState(false);
   const [forceVerifyMessage, setForceVerifyMessage] = useState('');
 
+  // Create inspection state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createMessage, setCreateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [newInspection, setNewInspection] = useState<CreateInspectionRequest>({
+    case_id: '',
+    exporter_name: '',
+    target_lat: 0,
+    target_long: 0,
+    product_type: 'General Goods'
+  });
+  const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
+
   const fetchInspections = useCallback(async () => {
     setLoading(true);
     try {
@@ -176,6 +195,53 @@ export default function AdminDashboard() {
     }
   };
 
+  // Generate unique case ID
+  const generateCaseId = () => {
+    const id = `CASE-${Date.now().toString(36).toUpperCase()}`;
+    setNewInspection(prev => ({ ...prev, case_id: id }));
+  };
+
+  // Create inspection handler
+  const handleCreateInspection = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newInspection.case_id || !newInspection.exporter_name) {
+      setCreateMessage({ type: 'error', text: 'Case ID and Exporter Name are required' });
+      return;
+    }
+
+    setCreateLoading(true);
+    setCreateMessage(null);
+
+    try {
+      const result = await createInspection(newInspection);
+      setCreateMessage({ type: 'success', text: `Inspection created! Case ID: ${result.case_id}` });
+      setCreatedCaseId(result.case_id);
+      fetchInspections();
+      // Reset form
+      setNewInspection({
+        case_id: '',
+        exporter_name: '',
+        target_lat: 0,
+        target_long: 0,
+        product_type: 'General Goods'
+      });
+    } catch (err) {
+      setCreateMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to create inspection' });
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  // Copy verification link to clipboard
+  const copyVerificationLink = () => {
+    if (createdCaseId) {
+      const link = `${window.location.origin}/verify/${createdCaseId}`;
+      navigator.clipboard.writeText(link);
+      setCreateMessage({ type: 'success', text: 'Verification link copied to clipboard!' });
+    }
+  };
+
   // Calculate stats - prioritize verification_status from ai_result
   const stats = {
     total: inspections.length,
@@ -223,6 +289,16 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* Create Inspection button */}
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg
+                           hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">New Inspection</span>
+              </button>
+
               {/* Refresh button */}
               <button
                 onClick={fetchInspections}
@@ -244,6 +320,200 @@ export default function AdminDashboard() {
           </div>
         </div>
       </nav>
+
+      {/* Create Inspection Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-blue-600" />
+                Create New Inspection
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setCreateMessage(null);
+                  setCreatedCaseId(null);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleCreateInspection} className="p-4 space-y-4">
+              {/* Case ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Case ID *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newInspection.case_id}
+                    onChange={(e) => setNewInspection(prev => ({ ...prev, case_id: e.target.value }))}
+                    placeholder="e.g., CASE-ABC123"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateCaseId}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm
+                               hover:bg-gray-200 transition-colors"
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+
+              {/* Exporter Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Building2 className="w-4 h-4 inline mr-1" />
+                  Exporter / Client Name *
+                </label>
+                <input
+                  type="text"
+                  value={newInspection.exporter_name}
+                  onChange={(e) => setNewInspection(prev => ({ ...prev, exporter_name: e.target.value }))}
+                  placeholder="e.g., Nike Export Division"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Product Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Package className="w-4 h-4 inline mr-1" />
+                  Product Type
+                </label>
+                <select
+                  value={newInspection.product_type}
+                  onChange={(e) => setNewInspection(prev => ({ ...prev, product_type: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="General Goods">General Goods</option>
+                  <option value="Rice/Grains">Rice / Grains</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Textiles">Textiles</option>
+                  <option value="Machinery">Machinery</option>
+                  <option value="Chemicals">Chemicals</option>
+                  <option value="Pharmaceuticals">Pharmaceuticals</option>
+                </select>
+              </div>
+
+              {/* Target Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Target Warehouse Location
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      value={newInspection.target_lat || ''}
+                      onChange={(e) => setNewInspection(prev => ({ ...prev, target_lat: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Latitude (e.g., 19.0760)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      value={newInspection.target_long || ''}
+                      onChange={(e) => setNewInspection(prev => ({ ...prev, target_long: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Longitude (e.g., 72.8777)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  User must be within 500m of this location to start verification
+                </p>
+              </div>
+
+              {/* Message */}
+              {createMessage && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  createMessage.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {createMessage.text}
+                </div>
+              )}
+
+              {/* Created Case Link */}
+              {createdCaseId && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-blue-800 mb-2">Verification Link:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-white px-2 py-1 rounded border border-blue-200 text-blue-900 truncate">
+                      {`${typeof window !== 'undefined' ? window.location.origin : ''}/verify/${createdCaseId}`}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={copyVerificationLink}
+                      className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Send this link to the field inspector
+                  </p>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setCreateMessage(null);
+                    setCreatedCaseId(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg
+                             hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg
+                             hover:bg-blue-700 disabled:opacity-50 transition-colors
+                             text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {createLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create Inspection
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -18,6 +18,25 @@ const api = axios.create({
 
 // --- Interfaces ---
 
+/**
+ * Create Inspection Request - Bank Manager creates inspection job
+ */
+export interface CreateInspectionRequest {
+  case_id: string
+  exporter_name: string
+  target_lat: number
+  target_long: number
+  product_type: string
+}
+
+/**
+ * Create Inspection Response
+ */
+export interface CreateInspectionResponse {
+  message: string
+  case_id: string
+}
+
 export interface InitiateSessionResponse {
   allowed: boolean
   reason?: string
@@ -35,8 +54,11 @@ export interface Inspection {
   case_id: string
   created_at: string
   status: string  // 'pending' | 'processing' | 'completed'
-  gps_lat: number
-  gps_long: number
+  gps_lat?: number         // User's actual GPS location
+  gps_long?: number
+  target_lat?: number      // Target warehouse location (set by admin)
+  target_long?: number
+  product_type?: string    // "Rice", "Electronics", "General Goods", etc.
   video_url?: string
   report_url?: string
   verification_code?: string
@@ -48,6 +70,11 @@ export interface Inspection {
       detected_code_transcript?: string
       voice_liveness_confidence?: string  // 'HIGH' | 'LOW' - backend field name
       voice_confidence?: number  // Alternative field for compatibility
+    }
+    product_verification?: {  // NEW: Product-specific verification
+      matches_expected_product?: boolean
+      visual_description?: string
+      packaging_type?: string
     }
     risk_assessment?: {
       overall_confidence_score?: number  // Backend uses this field name
@@ -62,6 +89,7 @@ export interface Inspection {
       inventory_description?: string
       commercial_volume_detected?: boolean  // Backend uses this field name
       commercial_volume?: string  // Alternative field for compatibility
+      condition?: string  // 'Good' | 'Damaged' | 'Dusty'
     }
     auditor_reasoning?: string
   }
@@ -162,8 +190,26 @@ function handleAPIError(error: unknown): never {
 // --- API Methods ---
 
 /**
+ * Create Inspection (Admin Side)
+ * Bank Manager creates a new inspection job before user can verify.
+ *
+ * Endpoint: POST /create-inspection
+ */
+export async function createInspection(
+  data: CreateInspectionRequest
+): Promise<CreateInspectionResponse> {
+  try {
+    const response = await api.post<CreateInspectionResponse>('/create-inspection', data)
+    return response.data
+  } catch (error) {
+    handleAPIError(error)
+  }
+}
+
+/**
  * Initiate Session (User Side)
  * Sends GPS coordinates to backend for validation.
+ * NOTE: Requires case_id to exist (created via /create-inspection first)
  *
  * Endpoint: POST /initiate-session
  */

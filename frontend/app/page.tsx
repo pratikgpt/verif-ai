@@ -1,17 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { Shield, CheckCircle, MapPin, Video, FileText, ArrowRight, Lock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Shield, CheckCircle, MapPin, Video, FileText, ArrowRight, Lock, Search } from 'lucide-react'
 
 export default function Home() {
-  // Generate a stable session ID only on client side to avoid hydration mismatch
-  const [demoSessionId, setDemoSessionId] = useState('demo-new')
+  const router = useRouter()
+  const [caseId, setCaseId] = useState('')
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    // Generate unique ID only on client side
-    setDemoSessionId(`demo-${Date.now().toString(36)}`)
-  }, [])
+  // Handle case ID submission
+  const handleStartVerification = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!caseId.trim()) {
+      setError('Please enter a Case ID')
+      return
+    }
+    setError('')
+    router.push(`/verify/${caseId.trim()}`)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,25 +67,54 @@ export default function Home() {
               and AI-powered analysis. Trusted by banks and NBFCs.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href={`/verify/${demoSessionId}`}
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium
-                           text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors
-                           shadow-sm"
-              >
-                Start Demo Verification
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Link>
-              <Link
-                href="/admin/dashboard"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-medium
-                           text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors
-                           border border-gray-300"
-              >
-                View Dashboard
-              </Link>
+            {/* Case ID Entry Form */}
+            <div className="mt-10 max-w-md mx-auto">
+              <form onSubmit={handleStartVerification} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                  Enter your Case ID to start verification
+                </label>
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={caseId}
+                      onChange={(e) => {
+                        setCaseId(e.target.value)
+                        setError('')
+                      }}
+                      placeholder="e.g., CASE-ABC123"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg
+                                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg
+                               hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    Start
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </div>
+                {error && (
+                  <p className="text-red-500 text-sm mt-2 text-left">{error}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-3 text-left">
+                  Case ID is provided by your Bank Manager after creating the inspection job.
+                </p>
+              </form>
+
+              <div className="mt-4">
+                <Link
+                  href="/admin/dashboard"
+                  className="inline-flex items-center justify-center w-full px-6 py-3 text-base font-medium
+                             text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors
+                             border border-gray-300"
+                >
+                  Bank Manager? Go to Dashboard
+                </Link>
+              </div>
             </div>
           </div>
         </div>
