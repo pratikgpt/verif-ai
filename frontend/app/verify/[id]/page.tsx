@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Shield, MapPin, CheckCircle, Loader2, Upload, Video, RefreshCw, Wifi } from 'lucide-react'
+import { Shield, MapPin, CheckCircle, Loader2, Upload, Video, RefreshCw, Wifi, Download } from 'lucide-react'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useUpload } from '@/hooks/useUpload'
 import PermissionScreen from '@/components/GPS/PermissionScreen'
@@ -37,6 +37,7 @@ export default function VerifyPage() {
     error: uploadError,
     videoUrl,
     reportId,
+    reportUrl,
     upload,
     retry: retryUpload,
     cancel: cancelUpload,
@@ -48,6 +49,7 @@ export default function VerifyPage() {
   const [blockMessage, setBlockMessage] = useState<string>('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [verificationCode, setVerificationCode] = useState<string>('')
+  const [exporterName, setExporterName] = useState<string>('')  // Client name from backend
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
 
@@ -96,6 +98,10 @@ export default function VerifyPage() {
         // Store verification code from backend
         if (response.verification_code) {
           setVerificationCode(response.verification_code)
+        }
+        // Store client/exporter name from backend
+        if (response.exporter_name) {
+          setExporterName(response.exporter_name)
         }
         setFlowState('ready')
       } else {
@@ -259,6 +265,20 @@ export default function VerifyPage() {
             The system will analyze it shortly.
           </p>
 
+          {/* Download Audit Certificate Button - The Money Shot */}
+          {reportUrl && (
+            <a
+              href={reportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg
+                         font-semibold transition-colors flex items-center justify-center gap-3 mb-6"
+            >
+              <Download className="w-5 h-5" />
+              Download Audit Certificate
+            </a>
+          )}
+
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
             <p className="text-sm text-gray-500 mb-1">Session ID</p>
             <p className="font-mono text-gray-900">{sessionId}</p>
@@ -302,6 +322,14 @@ export default function VerifyPage() {
           </div>
         </div>
 
+        {/* Client Name Banner - Shows who is being verified */}
+        {exporterName && (
+          <div className="bg-blue-600 text-white rounded-lg p-4 mb-4">
+            <p className="text-xs text-blue-200 uppercase tracking-wide mb-1">Verifying</p>
+            <p className="text-lg font-bold">{exporterName}</p>
+          </div>
+        )}
+
         {/* Location Verified Badge - Compact */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-green-700">
@@ -340,7 +368,7 @@ export default function VerifyPage() {
             {flowState === 'ready' && (
               <Camera
                 onRecordingComplete={handleRecordingComplete}
-                recordingDuration={10}
+                recordingDuration={60}
                 verificationCode={verificationCode}
               />
             )}
@@ -352,21 +380,39 @@ export default function VerifyPage() {
                   <video
                     src={URL.createObjectURL(recordedBlob)}
                     controls
+                    playsInline
+                    preload="auto"
+                    onLoadedMetadata={(e) => {
+                      const video = e.currentTarget
+                      // Ensure volume is maxed and unmuted
+                      video.volume = 1.0
+                      video.muted = false
+                      console.log('Video preview ready:', {
+                        duration: video.duration?.toFixed(2) + 's',
+                        volume: video.volume,
+                        muted: video.muted,
+                      })
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </div>
 
                 {/* Video Info */}
-                <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Video className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">
-                      {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      Ready to upload
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500">
-                    Ready to upload
-                  </span>
+                  <p className="text-xs text-blue-600">
+                    Click play button above to preview with audio
+                  </p>
                 </div>
 
                 {/* Verification Code Confirmation */}
@@ -406,12 +452,12 @@ export default function VerifyPage() {
         {/* Instructions */}
         {flowState === 'ready' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Recording Instructions</h3>
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Power Minute Audit Instructions</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>1. Click "Enable Camera" to start</li>
-              <li>2. Click "Start Recording" for a 10-second video</li>
+              <li>2. Click "Start Recording" for a <strong>60-second video</strong></li>
               <li>3. <strong>Read the 4-digit code out loud</strong> when it appears</li>
-              <li>4. Pan around to show the warehouse and stock</li>
+              <li>4. Pan around to show the warehouse and stock thoroughly</li>
             </ul>
           </div>
         )}

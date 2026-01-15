@@ -24,6 +24,7 @@ export interface InitiateSessionResponse {
   session_id?: string
   distance?: number
   verification_code?: string
+  exporter_name?: string  // Client name to display during verification
 }
 
 /**
