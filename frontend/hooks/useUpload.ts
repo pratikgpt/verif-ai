@@ -18,6 +18,7 @@ export interface UseUploadReturn {
   error: string | null
   videoUrl: string | null
   reportId: string | null
+  reportUrl: string | null  // PDF certificate URL from backend
   upload: (blob: Blob, sessionId: string, verificationCode: string) => Promise<void>
   retry: () => void
   cancel: () => void
@@ -44,6 +45,7 @@ export function useUpload(): UseUploadReturn {
   const [error, setError] = useState<string | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [reportId, setReportId] = useState<string | null>(null)
+  const [reportUrl, setReportUrl] = useState<string | null>(null)
 
   // Store blob, sessionId, and verificationCode for retry
   const blobRef = useRef<Blob | null>(null)
@@ -100,8 +102,10 @@ export function useUpload(): UseUploadReturn {
       )
 
       setVideoUrl(response.data.video_url)
-      // Backend uses session_id (case_id) as the report identifier, not a separate report_id
+      // Backend uses session_id (case_id) as the report identifier
       setReportId(sessionId)
+      // Capture PDF certificate URL from backend response
+      setReportUrl(response.data.report_url || null)
       setStatus('success')
     } catch (err) {
       if (axios.isCancel(err)) {
@@ -153,6 +157,7 @@ export function useUpload(): UseUploadReturn {
     setError(null)
     setVideoUrl(null)
     setReportId(null)
+    setReportUrl(null)
     blobRef.current = null
     sessionIdRef.current = null
     verificationCodeRef.current = null
@@ -164,6 +169,7 @@ export function useUpload(): UseUploadReturn {
     error,
     videoUrl,
     reportId,
+    reportUrl,
     upload,
     retry,
     cancel,

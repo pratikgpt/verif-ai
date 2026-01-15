@@ -83,28 +83,27 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
     )
   }
 
-  // Render requesting state
-  if (status === 'requesting') {
-    return (
-      <div className="w-full aspect-video bg-gray-900 rounded-lg flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-        <p className="text-gray-400">Requesting camera access...</p>
-      </div>
-    )
-  }
-
-  // Render preview/recording/recorded states
+  // Render requesting/preview/recording/recorded states
+  // Video element is always in DOM so ref works properly
   return (
     <div className="w-full relative">
-      {/* Video Preview */}
+      {/* Video Preview - Always rendered so ref is available for stream attachment */}
       <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={status !== 'recorded'} // Mute during preview to avoid feedback
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover ${status === 'requesting' ? 'invisible' : 'visible'}`}
         />
+
+        {/* Requesting Overlay */}
+        {status === 'requesting' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+            <p className="text-gray-400">Requesting camera access...</p>
+          </div>
+        )}
 
         {/* Recording Indicator */}
         {status === 'recording' && (

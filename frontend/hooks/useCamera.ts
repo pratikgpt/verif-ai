@@ -62,6 +62,19 @@ export function useCamera(): UseCameraReturn {
     }
   }, [])
 
+  // Attach stream to video element when both are available
+  // This handles the case where video element renders after stream is obtained
+  useEffect(() => {
+    if (streamRef.current && videoRef.current && status === 'previewing') {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current
+        videoRef.current.play().catch(err => {
+          console.warn('Video autoplay failed:', err)
+        })
+      }
+    }
+  }, [status])
+
   /**
    * Start Camera
    *
@@ -80,10 +93,24 @@ export function useCamera(): UseCameraReturn {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-        audio: true, // Need audio for liveness code reading (Day 8)
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        },
       })
 
       streamRef.current = stream
+
+      // Debug: Verify audio tracks are available
+      const audioTracks = stream.getAudioTracks()
+      const videoTracks = stream.getVideoTracks()
+      console.log('Camera started:', {
+        audioTracks: audioTracks.length,
+        videoTracks: videoTracks.length,
+        audioEnabled: audioTracks[0]?.enabled,
+        audioLabel: audioTracks[0]?.label,
+      })
 
       // Attach stream to video element for preview
       if (videoRef.current) {
@@ -120,10 +147,36 @@ export function useCamera(): UseCameraReturn {
     chunksRef.current = []
     setRecordingTime(durationSeconds)
 
-    // Create MediaRecorder with WebM format (best browser support)
-    const mediaRecorder = new MediaRecorder(streamRef.current, {
-      mimeType: 'video/webm;codecs=vp8,opus',
-    })
+    // Detect supported MIME type with audio codec
+    let mimeType = ''
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264,opus',
+      'video/webm',
+      'video/mp4',
+    ]
+
+    for (const type of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        mimeType = type
+        console.log('Using MIME type:', type)
+        break
+      }
+    }
+
+    // Create MediaRecorder with audio settings
+    const options: MediaRecorderOptions = {
+      audioBitsPerSecond: 128000,
+      videoBitsPerSecond: 2500000,
+    }
+    if (mimeType) {
+      options.mimeType = mimeType
+    }
+
+    // Create MediaRecorder with supported format
+    const mediaRecorder = new MediaRecorder(streamRef.current, options)
+    console.log('MediaRecorder created with audio:', streamRef.current.getAudioTracks().length > 0)
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -132,8 +185,10 @@ export function useCamera(): UseCameraReturn {
     }
 
     mediaRecorder.onstop = () => {
-      // Combine all chunks into single blob
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      // Combine all chunks into single blob using the recorder's actual mimeType
+      const blobType = mediaRecorder.mimeType || 'video/webm'
+      const blob = new Blob(chunksRef.current, { type: blobType })
+      console.log('Recording complete. Blob type:', blobType, 'Size:', blob.size, 'bytes')
       setRecordedBlob(blob)
       setStatus('recorded')
       setRecordingTime(0)
