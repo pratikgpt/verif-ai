@@ -10,7 +10,9 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Package,
+  HelpCircle
 } from 'lucide-react';
 import { Inspection } from '@/lib/api';
 
@@ -156,6 +158,54 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
     );
   };
 
+  // Get product verification status
+  const getProductMatchStatus = (inspection: Inspection) => {
+    const productVerification = inspection.ai_result?.product_verification;
+
+    if (!productVerification) {
+      return <span className="text-gray-400">-</span>;
+    }
+
+    if (productVerification.matches_expected_product === true) {
+      return (
+        <div className="flex flex-col">
+          <span className="text-green-600 flex items-center gap-1">
+            <CheckCircle className="w-4 h-4" />
+            Match
+          </span>
+          {productVerification.visual_description && (
+            <span className="text-xs text-gray-500 mt-0.5 max-w-[150px] truncate" title={productVerification.visual_description}>
+              {productVerification.visual_description}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (productVerification.matches_expected_product === false) {
+      return (
+        <div className="flex flex-col">
+          <span className="text-red-600 flex items-center gap-1">
+            <XCircle className="w-4 h-4" />
+            Mismatch
+          </span>
+          {productVerification.visual_description && (
+            <span className="text-xs text-gray-500 mt-0.5 max-w-[150px] truncate" title={productVerification.visual_description}>
+              {productVerification.visual_description}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <span className="text-amber-600 flex items-center gap-1">
+        <HelpCircle className="w-4 h-4" />
+        Uncertain
+      </span>
+    );
+  };
+
   // Format date/time
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -187,10 +237,16 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
                 Exporter
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Product
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Time
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Liveness
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Product Match
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Risk Score
@@ -206,7 +262,7 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {inspections.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={9} className="px-6 py-12 text-center">
                   <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium">No inspections found</p>
                   <p className="text-gray-400 text-sm mt-1">Inspections will appear here once submitted</p>
@@ -234,6 +290,14 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
                       </span>
                     </td>
 
+                    {/* Product Type */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                        <Package className="w-4 h-4 text-gray-400" />
+                        {inspection.product_type || 'General Goods'}
+                      </span>
+                    </td>
+
                     {/* Time */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{date}</div>
@@ -243,6 +307,11 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
                     {/* Liveness Check */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {getLivenessStatus(inspection)}
+                    </td>
+
+                    {/* Product Match */}
+                    <td className="px-6 py-4 text-sm">
+                      {getProductMatchStatus(inspection)}
                     </td>
 
                     {/* Risk Score */}
