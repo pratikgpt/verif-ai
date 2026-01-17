@@ -15,10 +15,16 @@ import {
   MapPin,
   Package,
   Building2,
-  Copy
+  Copy,
+  Mail,
+  LogOut,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import InspectionTable from '@/components/Dashboard/InspectionTable';
 import { getInspections, forceVerify, createInspection, Inspection, CreateInspectionRequest } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 // Mock data for when backend is unavailable
 const MOCK_INSPECTIONS: Inspection[] = [
@@ -108,6 +114,13 @@ const MOCK_INSPECTIONS: Inspection[] = [
 ];
 
 export default function AdminDashboard() {
+  // Authentication
+  const { status: authStatus, user, accessToken, error: authError, signIn, signOut, clearError } = useAuth();
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUsingMockData, setIsUsingMockData] = useState(false);
@@ -127,6 +140,7 @@ export default function AdminDashboard() {
   const [newInspection, setNewInspection] = useState<CreateInspectionRequest>({
     case_id: '',
     exporter_name: '',
+    client_email: '',  // NEW: Email for audit report
     target_lat: 0,
     target_long: 0,
     product_type: 'General Goods'
@@ -136,7 +150,7 @@ export default function AdminDashboard() {
   const fetchInspections = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getInspections();
+      const data = await getInspections(accessToken || undefined);
       // Debug: Log ALL inspections to see which ones have ai_result
       console.log('=== Dashboard Data Debug ===');
       console.log('Total inspections:', data?.length || 0);
@@ -154,7 +168,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     fetchInspections();
@@ -185,14 +199,30 @@ export default function AdminDashboard() {
     setForceVerifyMessage('');
 
     try {
-      const result = await forceVerify(forceVerifyId.trim());
+      const result = await forceVerify(forceVerifyId.trim(), accessToken || undefined);
       setForceVerifyMessage(result.message || 'Verification forced successfully!');
       fetchInspections();
     } catch (err) {
-      setForceVerifyMessage('Force verify failed. Backend endpoint may not be configured.');
+      setForceVerifyMessage('Force verify failed. Check authentication or backend.');
     } finally {
       setForceVerifyLoading(false);
     }
+  };
+
+  // Login handler
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) return;
+
+    setLoginLoading(true);
+    clearError();
+
+    const success = await signIn(loginEmail, loginPassword);
+    if (success) {
+      setLoginEmail('');
+      setLoginPassword('');
+    }
+    setLoginLoading(false);
   };
 
   // Generate unique case ID
@@ -205,8 +235,15 @@ export default function AdminDashboard() {
   const handleCreateInspection = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newInspection.case_id || !newInspection.exporter_name) {
-      setCreateMessage({ type: 'error', text: 'Case ID and Exporter Name are required' });
+    if (!newInspection.case_id || !newInspection.exporter_name || !newInspection.client_email) {
+      setCreateMessage({ type: 'error', text: 'Case ID, Exporter Name, and Client Email are required' });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newInspection.client_email)) {
+      setCreateMessage({ type: 'error', text: 'Please enter a valid email address' });
       return;
     }
 
@@ -214,7 +251,7 @@ export default function AdminDashboard() {
     setCreateMessage(null);
 
     try {
-      const result = await createInspection(newInspection);
+      const result = await createInspection(newInspection, accessToken || undefined);
       setCreateMessage({ type: 'success', text: `Inspection created! Case ID: ${result.case_id}` });
       setCreatedCaseId(result.case_id);
       fetchInspections();
@@ -222,6 +259,7 @@ export default function AdminDashboard() {
       setNewInspection({
         case_id: '',
         exporter_name: '',
+        client_email: '',
         target_lat: 0,
         target_long: 0,
         product_type: 'General Goods'
@@ -257,6 +295,127 @@ export default function AdminDashboard() {
       i.status === 'processing'
     ).length,
   };
+
+  // Show loading screen while checking auth
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <div className="h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
+          <Shield className="w-7 h-7 text-white" />
+        </div>
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600 mb-2" />
+        <p className="text-gray-500 text-sm">Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (authStatus === 'unauthenticated') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center h-14 w-14 bg-blue-600 rounded-xl mb-4">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">VerifAI Admin</h1>
+            <p className="text-gray-500 mt-1">Sign in to access the dashboard</p>
+          </div>
+
+          {/* Login Form */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <form onSubmit={handleLogin} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {authError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">{authError}</p>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loginLoading || !loginEmail || !loginPassword}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium
+                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-colors flex items-center justify-center gap-2"
+              >
+                {loginLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Sign In
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Info */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center">
+                Contact your administrator if you need access credentials.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-sm text-gray-400 mt-6">
+            VerifAI - Bank-Grade Stock Verification
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
@@ -309,12 +468,26 @@ export default function AdminDashboard() {
                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
-              {/* User avatar placeholder */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 hidden sm:block">Bank Manager</span>
-                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-xs text-gray-600 font-medium">BM</span>
+              {/* User info and logout */}
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-medium text-gray-700">
+                    {user?.email?.split('@')[0] || 'Admin'}
+                  </span>
+                  <span className="text-xs text-gray-400">Bank Manager</span>
                 </div>
+                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-xs text-blue-600 font-medium">
+                    {user?.email?.charAt(0).toUpperCase() || 'A'}
+                  </span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -384,6 +557,25 @@ export default function AdminDashboard() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              {/* Client Email - NEW */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Mail className="w-4 h-4 inline mr-1" />
+                  Client Email *
+                </label>
+                <input
+                  type="email"
+                  value={newInspection.client_email}
+                  onChange={(e) => setNewInspection(prev => ({ ...prev, client_email: e.target.value }))}
+                  placeholder="e.g., client@company.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Audit report will be sent to this email
+                </p>
               </div>
 
               {/* Product Type */}
