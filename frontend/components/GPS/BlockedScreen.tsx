@@ -46,18 +46,18 @@ export default function BlockedScreen({ reason, message }: BlockedScreenProps) {
   const content = getContent()
 
   return (
-    <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-4">
+    <main className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-4" role="alert" aria-live="assertive">
       <div className="w-full max-w-md text-center">
         {/* Warning Icon */}
         <div className="flex justify-center mb-6">
           <div className="p-4 bg-red-500 rounded-full">
-            <ShieldX className="w-12 h-12 text-white" />
+            <ShieldX className="w-12 h-12 text-white" aria-hidden="true" />
           </div>
         </div>
 
         {/* Alert Badge */}
         <div className="inline-flex items-center gap-2 bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full mb-6">
-          <AlertTriangle className="w-4 h-4" />
+          <AlertTriangle className="w-4 h-4" aria-hidden="true" />
           AUDIT BLOCKED
         </div>
 
@@ -72,7 +72,7 @@ export default function BlockedScreen({ reason, message }: BlockedScreenProps) {
         </p>
 
         {/* Instruction Box */}
-        <div className="bg-red-500/50 border border-red-400 rounded-lg p-4 mb-8">
+        <div className="bg-red-500/50 border border-red-400 rounded-lg p-4 mb-8" role="note">
           <p className="text-white text-sm">
             {content.instruction}
           </p>
@@ -81,8 +81,10 @@ export default function BlockedScreen({ reason, message }: BlockedScreenProps) {
         {/* Refresh Button - The ONLY escape */}
         <button
           onClick={() => window.location.reload()}
+          aria-label="Refresh page and try again"
           className="w-full py-4 px-6 bg-white text-red-600 font-semibold rounded-lg
-                     hover:bg-red-50 transition-colors"
+                     hover:bg-red-50 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-red-600"
         >
           Refresh & Try Again
         </button>
@@ -92,6 +94,6 @@ export default function BlockedScreen({ reason, message }: BlockedScreenProps) {
           This incident has been logged for security purposes.
         </p>
       </div>
-    </div>
+    </main>
   )
 }

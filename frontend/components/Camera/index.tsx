@@ -57,7 +57,9 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
         <p className="text-red-400 text-center mb-4">{error}</p>
         <button
           onClick={startCamera}
-          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+          aria-label="Retry camera access"
+          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           Try Again
         </button>
@@ -73,10 +75,12 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
         <p className="text-gray-400 text-sm mb-4">Camera ready</p>
         <button
           onClick={startCamera}
+          aria-label="Enable camera for recording"
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700
-                     flex items-center gap-2 font-medium"
+                     flex items-center gap-2 font-medium
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          <Video className="w-5 h-5" />
+          <Video className="w-5 h-5" aria-hidden="true" />
           Enable Camera
         </button>
       </div>
@@ -93,7 +97,8 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
           ref={videoRef}
           autoPlay
           playsInline
-          muted={status !== 'recorded'} // Mute during preview to avoid feedback
+          muted={status !== 'recorded'}
+          aria-label="Camera preview"
           className={`w-full h-full object-cover ${status === 'requesting' ? 'invisible' : 'visible'}`}
         />
 
@@ -146,14 +151,16 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
       </div>
 
       {/* Controls */}
-      <div className="mt-4 flex justify-center gap-4">
+      <div className="mt-4 flex justify-center gap-4" role="group" aria-label="Recording controls">
         {status === 'previewing' && (
           <button
             onClick={handleStartRecording}
+            aria-label={`Start ${recordingDuration} second recording`}
             className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700
-                       flex items-center gap-2 font-medium"
+                       flex items-center gap-2 font-medium
+                       focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
-            <Circle className="w-5 h-5 fill-white" />
+            <Circle className="w-5 h-5 fill-white" aria-hidden="true" />
             Start Recording ({recordingDuration}s)
           </button>
         )}
@@ -161,10 +168,12 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
         {status === 'recording' && (
           <button
             onClick={stopRecording}
+            aria-label="Stop recording early"
             className="px-6 py-3 bg-gray-700 text-white rounded-full hover:bg-gray-600
-                       flex items-center gap-2 font-medium"
+                       flex items-center gap-2 font-medium
+                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
-            <Square className="w-5 h-5 fill-white" />
+            <Square className="w-5 h-5 fill-white" aria-hidden="true" />
             Stop Early
           </button>
         )}
@@ -172,10 +181,12 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
         {status === 'recorded' && (
           <button
             onClick={resetCamera}
+            aria-label="Discard recording and start over"
             className="px-6 py-3 bg-gray-700 text-white rounded-full hover:bg-gray-600
-                       flex items-center gap-2 font-medium"
+                       flex items-center gap-2 font-medium
+                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
-            <RotateCcw className="w-5 h-5" />
+            <RotateCcw className="w-5 h-5" aria-hidden="true" />
             Record Again
           </button>
         )}

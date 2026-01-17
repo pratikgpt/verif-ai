@@ -75,7 +75,7 @@ export default function Home() {
                 </label>
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" aria-hidden="true" />
                     <input
                       type="text"
                       value={caseId}
@@ -84,17 +84,20 @@ export default function Home() {
                         setError('')
                       }}
                       placeholder="e.g., CASE-ABC123"
+                      aria-label="Case ID"
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <button
                     type="submit"
+                    aria-label="Start verification"
                     className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg
-                               hover:bg-blue-700 transition-colors flex items-center gap-2"
+                               hover:bg-blue-700 transition-colors flex items-center gap-2
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Start
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </div>
                 {error && (

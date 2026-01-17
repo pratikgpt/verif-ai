@@ -151,17 +151,11 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const data = await getInspections(accessToken || undefined);
-      // Debug: Log ALL inspections to see which ones have ai_result
-      console.log('=== Dashboard Data Debug ===');
-      console.log('Total inspections:', data?.length || 0);
-      data?.forEach((inspection, index) => {
-        console.log(`[${index}] ${inspection.case_id.slice(0, 12)}... | status: ${inspection.status} | verification: ${inspection.ai_result?.verification_status || 'N/A'} | has_ai_result: ${!!inspection.ai_result}`);
-      });
       setInspections(data);
       setIsUsingMockData(false);
       setLastUpdated(new Date());
-    } catch (err) {
-      console.warn("Backend unavailable, using mock data for demonstration.");
+    } catch {
+      // Backend unavailable, use mock data for demonstration
       setInspections(MOCK_INSPECTIONS);
       setIsUsingMockData(true);
       setLastUpdated(new Date());
