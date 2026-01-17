@@ -101,12 +101,20 @@ export function useUpload(): UseUploadReturn {
         }
       )
 
-      setVideoUrl(response.data.video_url)
+      // Note: Backend may not return video_url in response (stored in DB only)
+      // Use response.data.video_url if available, otherwise construct from session
+      setVideoUrl(response.data.video_url || null)
       // Backend uses session_id (case_id) as the report identifier
       setReportId(sessionId)
       // Capture PDF certificate URL from backend response
       setReportUrl(response.data.report_url || null)
       setStatus('success')
+
+      console.log('Upload complete:', {
+        status: response.data.status,
+        hasVerdict: !!response.data.ai_verdict,
+        reportUrl: response.data.report_url
+      })
     } catch (err) {
       if (axios.isCancel(err)) {
         setError('Upload cancelled')

@@ -20,10 +20,12 @@ const api = axios.create({
 
 /**
  * Create Inspection Request - Bank Manager creates inspection job
+ * NOTE: client_email is required by backend for sending audit reports
  */
 export interface CreateInspectionRequest {
   case_id: string
   exporter_name: string
+  client_email: string  // Required: Email to receive audit report
   target_lat: number
   target_long: number
   product_type: string
@@ -63,6 +65,7 @@ export interface Inspection {
   report_url?: string
   verification_code?: string
   exporter_name?: string
+  client_email?: string    // Email to receive audit report
   ai_result?: {
     verification_status?: string  // 'APPROVED' | 'REJECTED' | 'MANUAL_REVIEW'
     liveness_check?: {
@@ -190,16 +193,32 @@ function handleAPIError(error: unknown): never {
 // --- API Methods ---
 
 /**
- * Create Inspection (Admin Side)
+ * Create auth headers for protected routes
+ */
+function getAuthHeaders(authToken?: string): Record<string, string> {
+  if (authToken) {
+    return { 'Authorization': `Bearer ${authToken}` }
+  }
+  return {}
+}
+
+/**
+ * Create Inspection (Admin Side - Protected)
  * Bank Manager creates a new inspection job before user can verify.
+ * Requires authentication token.
  *
  * Endpoint: POST /create-inspection
  */
 export async function createInspection(
-  data: CreateInspectionRequest
+  data: CreateInspectionRequest,
+  authToken?: string
 ): Promise<CreateInspectionResponse> {
   try {
-    const response = await api.post<CreateInspectionResponse>('/create-inspection', data)
+    const response = await api.post<CreateInspectionResponse>(
+      '/create-inspection',
+      data,
+      { headers: getAuthHeaders(authToken) }
+    )
     return response.data
   } catch (error) {
     handleAPIError(error)
@@ -233,14 +252,18 @@ export async function initiateSession(
 }
 
 /**
- * Get All Inspections (Admin Dashboard)
+ * Get All Inspections (Admin Dashboard - Protected)
  * Fetches all inspection records for the admin dashboard.
+ * Requires authentication token.
  *
  * Endpoint: GET /admin/inspections
  */
-export async function getInspections(): Promise<Inspection[]> {
+export async function getInspections(authToken?: string): Promise<Inspection[]> {
   try {
-    const response = await api.get<Inspection[]>('/admin/inspections')
+    const response = await api.get<Inspection[]>(
+      '/admin/inspections',
+      { headers: getAuthHeaders(authToken) }
+    )
     return response.data
   } catch (error) {
     console.error('Failed to fetch inspections:', error)
@@ -249,15 +272,20 @@ export async function getInspections(): Promise<Inspection[]> {
 }
 
 /**
- * Force Verify (Admin Dashboard - Demo Safety)
+ * Force Verify (Admin Dashboard - Demo Safety - Protected)
  * Manually override verification for demo purposes.
+ * Requires authentication token.
  *
  * Endpoint: POST /admin/force-verify/{session_id}
  */
-export async function forceVerify(sessionId: string): Promise<ForceVerifyResponse> {
+export async function forceVerify(sessionId: string, authToken?: string): Promise<ForceVerifyResponse> {
   try {
     // Note: session_id is passed in the URL path, not the body
-    const response = await api.post<ForceVerifyResponse>(`/admin/force-verify/${sessionId}`)
+    const response = await api.post<ForceVerifyResponse>(
+      `/admin/force-verify/${sessionId}`,
+      {},
+      { headers: getAuthHeaders(authToken) }
+    )
     return response.data
   } catch (error) {
     handleAPIError(error)
