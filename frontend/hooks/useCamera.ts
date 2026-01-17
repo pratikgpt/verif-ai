@@ -102,16 +102,6 @@ export function useCamera(): UseCameraReturn {
 
       streamRef.current = stream
 
-      // Debug: Verify audio tracks are available
-      const audioTracks = stream.getAudioTracks()
-      const videoTracks = stream.getVideoTracks()
-      console.log('Camera started:', {
-        audioTracks: audioTracks.length,
-        videoTracks: videoTracks.length,
-        audioEnabled: audioTracks[0]?.enabled,
-        audioLabel: audioTracks[0]?.label,
-      })
-
       // Attach stream to video element for preview
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -160,7 +150,6 @@ export function useCamera(): UseCameraReturn {
     for (const type of mimeTypes) {
       if (MediaRecorder.isTypeSupported(type)) {
         mimeType = type
-        console.log('Using MIME type:', type)
         break
       }
     }
@@ -176,7 +165,6 @@ export function useCamera(): UseCameraReturn {
 
     // Create MediaRecorder with supported format
     const mediaRecorder = new MediaRecorder(streamRef.current, options)
-    console.log('MediaRecorder created with audio:', streamRef.current.getAudioTracks().length > 0)
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -188,7 +176,6 @@ export function useCamera(): UseCameraReturn {
       // Combine all chunks into single blob using the recorder's actual mimeType
       const blobType = mediaRecorder.mimeType || 'video/webm'
       const blob = new Blob(chunksRef.current, { type: blobType })
-      console.log('Recording complete. Blob type:', blobType, 'Size:', blob.size, 'bytes')
       setRecordedBlob(blob)
       setStatus('recorded')
       setRecordingTime(0)

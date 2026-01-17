@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { Shield, MapPin, CheckCircle, Loader2, Upload, Video, RefreshCw, Wifi, Download } from 'lucide-react'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -35,7 +35,6 @@ export default function VerifyPage() {
     status: uploadStatus,
     progress: uploadProgress,
     error: uploadError,
-    videoUrl,
     reportId,
     reportUrl,
     upload,
@@ -56,30 +55,25 @@ export default function VerifyPage() {
   // Prevent multiple /initiate-session calls per session
   const validatedSessionRef = useRef<string | null>(null)
 
-  // Handle GPS permission result (validate once per session)
-  useEffect(() => {
-    if (geoStatus === 'denied') {
-      setBlockReason('denied')
-      setFlowState('blocked')
-    } else if (geoStatus === 'error') {
-      setBlockReason('error')
-      setBlockMessage(geoError || 'Unknown error')
-      setFlowState('blocked')
-    } else if (geoStatus === 'granted' && position && validatedSessionRef.current !== sessionId) {
-      validatedSessionRef.current = sessionId
-      validateLocation()
+  // Memoize video preview URL to prevent memory leaks
+  const videoPreviewUrl = useMemo(() => {
+    if (recordedBlob) {
+      return URL.createObjectURL(recordedBlob)
     }
-  }, [geoStatus, position, sessionId])
+    return null
+  }, [recordedBlob])
 
-  // Handle upload status changes
+  // Cleanup video preview URL on unmount or when blob changes
   useEffect(() => {
-    if (uploadStatus === 'success') {
-      setFlowState('submitted')
+    return () => {
+      if (videoPreviewUrl) {
+        URL.revokeObjectURL(videoPreviewUrl)
+      }
     }
-  }, [uploadStatus])
+  }, [videoPreviewUrl])
 
   // Validate location with backend
-  const validateLocation = async () => {
+  const validateLocation = useCallback(async () => {
     if (!position) return
 
     setFlowState('validating')
@@ -125,7 +119,29 @@ export default function VerifyPage() {
 
       setValidationError(errorMessage)
     }
-  }
+  }, [position, sessionId])
+
+  // Handle GPS permission result (validate once per session)
+  useEffect(() => {
+    if (geoStatus === 'denied') {
+      setBlockReason('denied')
+      setFlowState('blocked')
+    } else if (geoStatus === 'error') {
+      setBlockReason('error')
+      setBlockMessage(geoError || 'Unknown error')
+      setFlowState('blocked')
+    } else if (geoStatus === 'granted' && position && validatedSessionRef.current !== sessionId) {
+      validatedSessionRef.current = sessionId
+      validateLocation()
+    }
+  }, [geoStatus, position, sessionId, geoError, validateLocation])
+
+  // Handle upload status changes
+  useEffect(() => {
+    if (uploadStatus === 'success') {
+      setFlowState('submitted')
+    }
+  }, [uploadStatus])
 
   // Retry validation
   const handleRetryValidation = () => {
@@ -351,7 +367,6 @@ export default function VerifyPage() {
               status={uploadStatus}
               progress={uploadProgress}
               error={uploadError}
-              videoUrl={videoUrl}
               onRetry={retryUpload}
               onCancel={handleCancelUpload}
             />
@@ -373,25 +388,19 @@ export default function VerifyPage() {
               />
             )}
 
-            {flowState === 'recorded' && recordedBlob && (
+            {flowState === 'recorded' && recordedBlob && videoPreviewUrl && (
               <div className="space-y-4">
                 {/* Video Preview */}
                 <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
                   <video
-                    src={URL.createObjectURL(recordedBlob)}
+                    src={videoPreviewUrl}
                     controls
                     playsInline
                     preload="auto"
                     onLoadedMetadata={(e) => {
                       const video = e.currentTarget
-                      // Ensure volume is maxed and unmuted
                       video.volume = 1.0
                       video.muted = false
-                      console.log('Video preview ready:', {
-                        duration: video.duration?.toFixed(2) + 's',
-                        volume: video.volume,
-                        muted: video.muted,
-                      })
                     }}
                     className="w-full h-full object-cover"
                   />

@@ -109,12 +109,6 @@ export function useUpload(): UseUploadReturn {
       // Capture PDF certificate URL from backend response
       setReportUrl(response.data.report_url || null)
       setStatus('success')
-
-      console.log('Upload complete:', {
-        status: response.data.status,
-        hasVerdict: !!response.data.ai_verdict,
-        reportUrl: response.data.report_url
-      })
     } catch (err) {
       if (axios.isCancel(err)) {
         setError('Upload cancelled')

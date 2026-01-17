@@ -66,9 +66,7 @@ export function useAuth(): UseAuthReturn {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('Auth state changed:', event)
-
+      async (_event, currentSession) => {
         if (currentSession) {
           setSession(currentSession)
           setUser(currentSession.user)
@@ -217,5 +215,3 @@ function getAuthErrorMessage(error: AuthError): string {
 
   return error.message || 'Authentication failed. Please try again.'
 }
-
-export default useAuth

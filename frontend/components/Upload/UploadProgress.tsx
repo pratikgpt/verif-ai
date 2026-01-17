@@ -1,13 +1,12 @@
 'use client'
 
-import { Upload, CheckCircle, AlertCircle, RefreshCw, X, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, RefreshCw, X, Loader2 } from 'lucide-react'
 import { UploadStatus } from '@/hooks/useUpload'
 
 interface UploadProgressProps {
   status: UploadStatus
   progress: number
   error: string | null
-  videoUrl: string | null
   onRetry: () => void
   onCancel: () => void
 }
@@ -30,7 +29,6 @@ export default function UploadProgress({
   status,
   progress,
   error,
-  videoUrl,
   onRetry,
   onCancel,
 }: UploadProgressProps) {
@@ -50,16 +48,24 @@ export default function UploadProgress({
           </div>
           <button
             onClick={onCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-            title="Cancel upload"
+            aria-label="Cancel upload"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg
+                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Progress Bar */}
         <div className="mb-2">
-          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Upload progress: ${progress}%`}
+            className="h-3 bg-gray-200 rounded-full overflow-hidden"
+          >
             <div
               className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
@@ -124,11 +130,13 @@ export default function UploadProgress({
         {/* Retry Button - THE MOST IMPORTANT BUTTON */}
         <button
           onClick={onRetry}
+          aria-label="Retry failed upload"
           className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white
                      rounded-lg font-medium transition-colors flex items-center
-                     justify-center gap-2"
+                     justify-center gap-2
+                     focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
         >
-          <RefreshCw className="w-5 h-5" />
+          <RefreshCw className="w-5 h-5" aria-hidden="true" />
           Retry Upload
         </button>
 
