@@ -20,7 +20,7 @@ export interface UseCameraReturn {
   recordedBlob: Blob | null
   recordingTime: number
   startCamera: () => Promise<void>
-  startRecording: (durationSeconds?: number) => void
+  startRecording: () => void
   stopRecording: () => void
   resetCamera: () => void
 }
@@ -128,14 +128,13 @@ export function useCamera(): UseCameraReturn {
   /**
    * Start Recording
    *
-   * Records for specified duration (default 10 seconds).
-   * Creates a Blob when complete.
+   * Records until user manually stops.
    */
-  const startRecording = useCallback((durationSeconds = 10) => {
+  const startRecording = useCallback(() => {
     if (!streamRef.current || status !== 'previewing') return
 
     chunksRef.current = []
-    setRecordingTime(durationSeconds)
+    setRecordingTime(0)
 
     // Detect supported MIME type with audio codec
     let mimeType = ''
@@ -191,15 +190,11 @@ export function useCamera(): UseCameraReturn {
     mediaRecorder.start(100) // Capture in 100ms chunks
     setStatus('recording')
 
-    // Countdown timer
-    let timeLeft = durationSeconds
+    // Elapsed time counter
+    let elapsed = 0
     timerRef.current = setInterval(() => {
-      timeLeft -= 1
-      setRecordingTime(timeLeft)
-
-      if (timeLeft <= 0) {
-        stopRecording()
-      }
+      elapsed += 1
+      setRecordingTime(elapsed)
     }, 1000)
   }, [status])
 

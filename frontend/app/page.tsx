@@ -35,7 +35,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <Link
-                href="/admin/dashboard"
+                href="/admin"
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Admin Dashboard
@@ -110,7 +110,7 @@ export default function Home() {
 
               <div className="mt-4">
                 <Link
-                  href="/admin/dashboard"
+                  href="/admin"
                   className="inline-flex items-center justify-center w-full px-6 py-3 text-base font-medium
                              text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors
                              border border-gray-300"
@@ -226,7 +226,7 @@ export default function Home() {
               Bank-Grade Stock Verification System
             </p>
             <div className="flex gap-6 text-sm text-gray-600">
-              <Link href="/admin/dashboard" className="hover:text-gray-900 transition-colors">
+              <Link href="/admin" className="hover:text-gray-900 transition-colors">
                 Dashboard
               </Link>
             </div>

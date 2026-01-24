@@ -95,7 +95,9 @@ export function useUpload(): UseUploadReturn {
               const percent = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               )
-              setProgress(percent)
+              // Cap at 90% during upload - the remaining 10% represents
+              // server-side processing (saving, AI analysis trigger)
+              setProgress(Math.min(percent, 90))
             }
           },
         }
@@ -103,10 +105,9 @@ export function useUpload(): UseUploadReturn {
 
       // Note: Backend may not return video_url in response (stored in DB only)
       // Use response.data.video_url if available, otherwise construct from session
+      setProgress(100)
       setVideoUrl(response.data.video_url || null)
-      // Backend uses session_id (case_id) as the report identifier
       setReportId(sessionId)
-      // Capture PDF certificate URL from backend response
       setReportUrl(response.data.report_url || null)
       setStatus('success')
     } catch (err) {
