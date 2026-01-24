@@ -383,7 +383,6 @@ export default function VerifyPage() {
             {flowState === 'ready' && (
               <Camera
                 onRecordingComplete={handleRecordingComplete}
-                recordingDuration={60}
                 verificationCode={verificationCode}
               />
             )}
@@ -461,12 +460,12 @@ export default function VerifyPage() {
         {/* Instructions */}
         {flowState === 'ready' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Power Minute Audit Instructions</h3>
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Audit Instructions</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>1. Click "Enable Camera" to start</li>
-              <li>2. Click "Start Recording" for a <strong>60-second video</strong></li>
-              <li>3. <strong>Read the 4-digit code out loud</strong> when it appears</li>
-              <li>4. Pan around to show the warehouse and stock thoroughly</li>
+              <li>2. Click "Start Recording" and <strong>read the 4-digit code out loud</strong></li>
+              <li>3. Pan around to show the warehouse and stock thoroughly</li>
+              <li>4. Click "Stop Recording" when done</li>
             </ul>
           </div>
         )}

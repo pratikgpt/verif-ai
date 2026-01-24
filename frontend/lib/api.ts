@@ -74,7 +74,7 @@ export interface Inspection {
       voice_liveness_confidence?: string  // 'HIGH' | 'LOW' - backend field name
       voice_confidence?: number  // Alternative field for compatibility
     }
-    product_verification?: {  // NEW: Product-specific verification
+    product_verification?: {
       matches_expected_product?: boolean
       visual_description?: string
       packaging_type?: string

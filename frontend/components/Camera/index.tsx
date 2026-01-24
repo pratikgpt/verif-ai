@@ -6,25 +6,10 @@ import { useCamera } from '@/hooks/useCamera'
 
 interface CameraProps {
   onRecordingComplete: (blob: Blob) => void
-  recordingDuration?: number
-  verificationCode: string  // Received from backend via /initiate-session
+  verificationCode: string
 }
 
-/**
- * Camera Component
- *
- * SECURITY: NO <input type="file"> anywhere!
- * This component ONLY uses live camera feed via getUserMedia.
- *
- * Flow:
- * 1. User clicks "Enable Camera" → requests permission
- * 2. Live preview shows (no recording yet)
- * 3. User clicks "Start Recording" → 10-second countdown
- * 4. Recording auto-stops → blob passed to parent
- *
- * Liveness code is received from backend (not generated here)
- */
-export default function Camera({ onRecordingComplete, recordingDuration = 10, verificationCode }: CameraProps) {
+export default function Camera({ onRecordingComplete, verificationCode }: CameraProps) {
   const {
     status,
     videoRef,
@@ -37,9 +22,15 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
     resetCamera,
   } = useCamera()
 
-  // Start recording (liveness code comes from backend via props)
   const handleStartRecording = () => {
-    startRecording(recordingDuration)
+    startRecording()
+  }
+
+  // Format elapsed time as M:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   // When recording is complete, notify parent with blob
@@ -118,10 +109,10 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
           </div>
         )}
 
-        {/* Countdown Timer */}
+        {/* Elapsed Timer */}
         {status === 'recording' && (
           <div className="absolute top-4 right-4 bg-black/70 text-white px-4 py-2 rounded-lg">
-            <span className="text-2xl font-bold font-mono">{recordingTime}s</span>
+            <span className="text-2xl font-bold font-mono">{formatTime(recordingTime)}</span>
           </div>
         )}
 
@@ -155,26 +146,26 @@ export default function Camera({ onRecordingComplete, recordingDuration = 10, ve
         {status === 'previewing' && (
           <button
             onClick={handleStartRecording}
-            aria-label={`Start ${recordingDuration} second recording`}
+            aria-label="Start recording"
             className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700
                        flex items-center gap-2 font-medium
                        focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
             <Circle className="w-5 h-5 fill-white" aria-hidden="true" />
-            Start Recording ({recordingDuration}s)
+            Start Recording
           </button>
         )}
 
         {status === 'recording' && (
           <button
             onClick={stopRecording}
-            aria-label="Stop recording early"
-            className="px-6 py-3 bg-gray-700 text-white rounded-full hover:bg-gray-600
-                       flex items-center gap-2 font-medium
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            aria-label="Stop recording"
+            className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700
+                       flex items-center gap-2 font-medium animate-pulse
+                       focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
             <Square className="w-5 h-5 fill-white" aria-hidden="true" />
-            Stop Early
+            Stop Recording
           </button>
         )}
 

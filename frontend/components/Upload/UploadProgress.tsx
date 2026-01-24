@@ -75,7 +75,9 @@ export default function UploadProgress({
 
         {/* Progress Text */}
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Uploading...</span>
+          <span className="text-gray-600">
+            {progress >= 90 ? 'Processing on server...' : 'Uploading...'}
+          </span>
           <span className="font-medium text-blue-600">{progress}%</span>
         </div>
 
