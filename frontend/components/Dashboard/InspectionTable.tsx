@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FileText,
   CheckCircle,
@@ -12,15 +12,18 @@ import {
   TrendingDown,
   Minus,
   Package,
-  HelpCircle
+  HelpCircle,
+  Play,
 } from 'lucide-react';
 import { Inspection } from '@/lib/api';
+import VideoModal from './VideoModal';
 
 interface InspectionTableProps {
   inspections: Inspection[];
 }
 
 const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; caseId: string; exporterName: string } | null>(null);
 
   // Get status badge based on verification status
   const getStatusBadge = (inspection: Inspection) => {
@@ -255,6 +258,9 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
                 Status
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Video
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Report
               </th>
             </tr>
@@ -262,7 +268,7 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {inspections.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-12 text-center">
+                <td colSpan={10} className="px-6 py-12 text-center">
                   <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 font-medium">No inspections found</p>
                   <p className="text-gray-400 text-sm mt-1">Inspections will appear here once submitted</p>
@@ -324,6 +330,31 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
                       {getStatusBadge(inspection)}
                     </td>
 
+                    {/* Video */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {inspection.video_url ? (
+                        <button
+                          onClick={() => setSelectedVideo({
+                            url: inspection.video_url!,
+                            caseId: inspection.case_id,
+                            exporterName: inspection.exporter_name || 'Unknown',
+                          })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
+                                     text-blue-600 hover:text-blue-800 hover:bg-blue-50
+                                     rounded-lg transition-colors"
+                          aria-label={`Watch video for case ${inspection.case_id.slice(0, 8)}`}
+                        >
+                          <Play className="w-4 h-4" />
+                          Watch
+                        </button>
+                      ) : (
+                        <span className="text-sm text-gray-400 flex items-center gap-1">
+                          <Minus className="w-4 h-4" />
+                          N/A
+                        </span>
+                      )}
+                    </td>
+
                     {/* View PDF */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {inspection.report_url ? (
@@ -361,6 +392,16 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
             Showing {inspections.length} inspection{inspections.length !== 1 ? 's' : ''}
           </p>
         </div>
+      )}
+
+      {/* Video Modal */}
+      {selectedVideo && (
+        <VideoModal
+          videoUrl={selectedVideo.url}
+          caseId={selectedVideo.caseId}
+          exporterName={selectedVideo.exporterName}
+          onClose={() => setSelectedVideo(null)}
+        />
       )}
     </div>
   );
