@@ -25,100 +25,12 @@ import InspectionTable from '@/components/Dashboard/InspectionTable';
 import { getInspections, forceVerify, createInspection, Inspection, CreateInspectionRequest } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
-// Mock data for when backend is unavailable
-const MOCK_INSPECTIONS: Inspection[] = [
-  {
-    case_id: '550e8400-e29b-41d4-a716-446655440000',
-    created_at: new Date().toISOString(),
-    status: 'completed',
-    gps_lat: 19.073892,
-    gps_long: 72.845470,
-    exporter_name: 'GreenField Exports Pvt Ltd',
-    video_url: 'https://example.com/video1.mp4',
-    report_url: 'https://example.com/report1.pdf',
-    ai_result: {
-      verification_status: 'APPROVED',
-      liveness_check: {
-        code_spoken_correctly: true,
-        voice_confidence: 95
-      },
-      risk_assessment: {
-        confidence_score: 92,
-        fraud_flags: []
-      },
-      stock_assessment: {
-        warehouse_environment: true,
-        inventory_visible: true,
-        commercial_volume: 'HIGH'
-      },
-      auditor_reasoning: 'Warehouse verified with substantial inventory.'
-    }
-  },
-  {
-    case_id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    status: 'completed',
-    gps_lat: 19.076090,
-    gps_long: 72.877426,
-    exporter_name: 'Oceanic Traders International',
-    video_url: 'https://example.com/video2.mp4',
-    ai_result: {
-      verification_status: 'REJECTED',
-      liveness_check: {
-        code_spoken_correctly: false,
-        voice_confidence: 30
-      },
-      risk_assessment: {
-        confidence_score: 25,
-        fraud_flags: ['LIVENESS_FAILED', 'CODE_MISMATCH']
-      },
-      auditor_reasoning: 'Liveness code was not spoken correctly.'
-    }
-  },
-  {
-    case_id: '3d8b1234-5678-90ab-cdef-1234567890ab',
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-    status: 'processing',
-    gps_lat: 19.082080,
-    gps_long: 72.871170,
-    exporter_name: 'Apex Logistics Co',
-  },
-  {
-    case_id: 'abc12345-6789-0def-ghij-klmnopqrstuv',
-    created_at: new Date(Date.now() - 14400000).toISOString(),
-    status: 'completed',
-    gps_lat: 19.089654,
-    gps_long: 72.865890,
-    exporter_name: 'Mumbai Exports Hub',
-    video_url: 'https://example.com/video4.mp4',
-    report_url: 'https://example.com/report4.pdf',
-    ai_result: {
-      verification_status: 'APPROVED',
-      liveness_check: {
-        code_spoken_correctly: true,
-        voice_confidence: 88
-      },
-      risk_assessment: {
-        confidence_score: 85,
-        fraud_flags: []
-      },
-      stock_assessment: {
-        warehouse_environment: true,
-        inventory_visible: true,
-        commercial_volume: 'MEDIUM'
-      },
-      auditor_reasoning: 'Stock verified at warehouse location.'
-    }
-  }
-];
-
 export default function AdminDashboard() {
   const router = useRouter();
   const { status: authStatus, user, accessToken, signOut } = useAuth();
 
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Force verify state (hidden feature for demo safety)
@@ -138,7 +50,7 @@ export default function AdminDashboard() {
     client_email: '',
     target_lat: 0,
     target_long: 0,
-    product_type: 'General Goods'
+    product_type: ''
   });
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
 
@@ -147,13 +59,9 @@ export default function AdminDashboard() {
     try {
       const data = await getInspections(accessToken || undefined);
       setInspections(data);
-      setIsUsingMockData(false);
       setLastUpdated(new Date());
     } catch {
-      // Backend unavailable, use mock data for demonstration
-      setInspections(MOCK_INSPECTIONS);
-      setIsUsingMockData(true);
-      setLastUpdated(new Date());
+      // Silently fail - just show empty state
     } finally {
       setLoading(false);
     }
@@ -243,7 +151,7 @@ export default function AdminDashboard() {
         client_email: '',
         target_lat: 0,
         target_long: 0,
-        product_type: 'General Goods'
+        product_type: ''
       });
     } catch (err) {
       setCreateMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to create inspection' });
@@ -456,20 +364,14 @@ export default function AdminDashboard() {
                   <Package className="w-4 h-4 inline mr-1" />
                   Product Type
                 </label>
-                <select
+                <input
+                  type="text"
                   value={newInspection.product_type}
                   onChange={(e) => setNewInspection(prev => ({ ...prev, product_type: e.target.value }))}
+                  placeholder="e.g., Rice, Electronics, Textiles"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="General Goods">General Goods</option>
-                  <option value="Rice/Grains">Rice / Grains</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Textiles">Textiles</option>
-                  <option value="Machinery">Machinery</option>
-                  <option value="Chemicals">Chemicals</option>
-                  <option value="Pharmaceuticals">Pharmaceuticals</option>
-                </select>
+                />
               </div>
 
               {/* Target Location */}
@@ -588,19 +490,6 @@ export default function AdminDashboard() {
             Real-time overview of all field verification audits
           </p>
         </div>
-
-        {/* Mock Data Warning */}
-        {isUsingMockData && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">Demo Mode Active</p>
-              <p className="text-sm text-amber-700">
-                Backend unavailable. Displaying sample data for demonstration.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Hidden Force Verify Panel (Demo Safety) */}
         {showForceVerify && (

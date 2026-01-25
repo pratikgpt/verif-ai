@@ -220,7 +220,7 @@ export default function Home() {
               <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Shield className="w-4 h-4 text-white" />
               </div>
-              <span className="font-semibold text-gray-900">VerifAI</span>
+              <span className="font-semibold text-gray-900">Verif-AI</span>
             </div>
             <p className="text-sm text-gray-500">
               Bank-Grade Stock Verification System
