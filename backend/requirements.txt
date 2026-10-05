@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+supabase
+python-dotenv
+pydantic
+python-multipart
+google-genai
+requests
+fpdf2
+resend
