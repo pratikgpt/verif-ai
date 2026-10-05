@@ -47,7 +47,7 @@ flowchart LR
 verif-ai/
 ├── frontend/   Next.js app: landing page, inspection flow (/verify/[id]), manager login and dashboard (/admin)
 ├── backend/    FastAPI app: main.py (API), ai_engine.py (Gemini audit), report_generator.py (PDF)
-└── docs/       Pitch deck and screenshots
+└── docs/       Screenshots
 ```
 
 ## API
@@ -113,7 +113,3 @@ npm install
 cp .env.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:8000, plus your Supabase URL and anon key
 npm run dev
 ```
-
-## More
-
-- [Pitch deck (PDF)](docs/VerifAI-The-Unbribable-Inspector.pdf)
