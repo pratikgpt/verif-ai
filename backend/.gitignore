@@ -1,0 +1,17 @@
+# Security
+.env
+
+# Python Virtual Environment 
+venv/
+myvenv/
+env/
+__pycache__/
+
+# Mac/Windows junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+test_api.py
