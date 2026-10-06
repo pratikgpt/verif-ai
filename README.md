@@ -52,7 +52,7 @@ verif-ai/
 
 ## API
 
-Manager routes need an `Authorization: Bearer <Supabase access token>` header.
+Manager routes need an `Authorization: Bearer <Supabase access token>` header from a user whose email is listed in `ADMIN_EMAILS`.
 
 | Method | Endpoint | Access | Purpose |
 |--------|----------|--------|---------|
@@ -67,7 +67,7 @@ Manager routes need an `Authorization: Bearer <Supabase access token>` header.
 
 **Requirements:** Python 3.10+, Node.js 18.17+, a Supabase project, a Gemini API key and a Resend API key.
 
-**1. Supabase.** Create two public storage buckets, `Videos` and `Reports`, add a manager user under Authentication, and create the table the backend uses:
+**1. Supabase.** Create two public storage buckets, `Videos` and `Reports`, add a manager user under Authentication and turn off new user sign-ups, and create the table the backend uses:
 
 ```sql
 create table inspections (
@@ -104,6 +104,7 @@ uvicorn main:app --reload
 | `SUPABASE_URL`, `SUPABASE_KEY` | Supabase project URL and key |
 | `RESEND_API_KEY` | Sending certificate emails |
 | `REPORT_EMAIL` | Fallback recipient when a case has no client email |
+| `ADMIN_EMAILS` | Comma-separated emails of the managers who can use the manager routes |
 
 **3. Frontend** (runs on `http://localhost:3000`):
 

@@ -17,6 +17,10 @@ url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 resend.api_key = os.environ.get("RESEND_API_KEY")
 DEFAULT_REPORT_EMAIL = os.environ.get("REPORT_EMAIL")  # used when an inspection has no client_email
+# Only these signed-in users can use the manager routes (comma-separated emails)
+ADMIN_EMAILS = {email.strip().lower() for email in os.environ.get("ADMIN_EMAILS", "").split(",") if email.strip()}
+if not ADMIN_EMAILS:
+    print("⚠️ ADMIN_EMAILS is empty, so nobody can use the manager routes.")
 
 # Global Settings
 max_distance = 500  # Meters
@@ -38,21 +42,28 @@ app.add_middleware(
 # --- HELPER: Verify Admin (Supabase Auth) ---
 def verify_admin(authorization: str = Header(None)):
     """
-    Protects Admin Routes. 
+    Protects Admin Routes.
     Frontend must send header: 'Authorization: Bearer <access_token>'
+    The signed-in user's email must also be listed in ADMIN_EMAILS.
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Token")
-    
+
     try:
         token = authorization.replace("Bearer ", "")
         # Ask Supabase: "Is this token valid?"
-        user = supabase.auth.get_user(token)
-        if not user:
-             raise HTTPException(status_code=401, detail="Invalid Token")
-        return user
+        response = supabase.auth.get_user(token)
     except Exception as e:
         raise HTTPException(status_code=401, detail="Session Expired. Please Login Again.")
+
+    user = response.user if response else None
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    # A valid login isn't enough: anyone can create an account while Supabase sign-ups are on
+    if (user.email or "").lower() not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="This account is not a manager.")
+    return user
 
 # --- HELPER: Calculate Distance ---
 def calculate_distance(lat1, lon1, lat2, lon2):
