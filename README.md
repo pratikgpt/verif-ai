@@ -59,7 +59,7 @@ Manager routes need an `Authorization: Bearer <Supabase access token>` header fr
 | `GET` | `/` | Public | Health check |
 | `POST` | `/create-inspection` | Manager | Create an inspection case |
 | `POST` | `/initiate-session` | Public | Check the exporter's GPS and issue the one-time code |
-| `POST` | `/upload-video/{session_id}` | Public | Upload the video, run the AI audit, create and email the certificate |
+| `POST` | `/upload-video/{session_id}` | Public | Upload the video (after the GPS check, until the case has a verdict, 100 MB max), run the AI audit, create and email the certificate |
 | `GET` | `/admin/inspections` | Manager | List all inspections |
 | `POST` | `/admin/force-verify/{session_id}` | Manager | Manually approve a case and reissue the certificate |
 
