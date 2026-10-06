@@ -80,7 +80,11 @@ def analyze_video(video_url, expected_code, product_name="General Stock"):
         ### OUTPUT FORMAT (JSON ONLY):
         {{
             "verification_status": "APPROVED" | "REJECTED" | "MANUAL_REVIEW",
-            "liveness_check": {{ "code_spoken_correctly": boolean, "voice_liveness_confidence": "HIGH" | "LOW" }},
+            "liveness_check": {{
+                "code_spoken_correctly": boolean,
+                "detected_code_transcript": "string (the code as you heard it, e.g. '4 7 2 9')",
+                "voice_liveness_confidence": "HIGH" | "LOW"
+            }},
             "product_verification": {{
                 "matches_expected_product": boolean,
                 "visual_description": "string (e.g. 'Saw white grains in open sack')",
