@@ -13,6 +13,9 @@ api_key = os.environ.get("GEMINI_API_KEY")
 # 2. Configure Client
 client = genai.Client(api_key=api_key)
 
+# 3. Gemini model used for the audit
+MODEL = "gemini-3.8-flash"
+
 def analyze_video(video_url, expected_code, product_name="General Stock"):
     """
     Downloads video from Supabase -> Sends to Gemini -> Returns JSON Verdict
@@ -95,10 +98,8 @@ def analyze_video(video_url, expected_code, product_name="General Stock"):
 
         # E. Generate Content
         try:
-            
-            # If you have access to 2.0 or newer, change this string.
             response = client.models.generate_content(
-                model='gemini-2.5-flash', 
+                model=MODEL,
                 contents=[
                     types.Content(
                         role="user",
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     try:
         # Simple text test
         response = client.models.generate_content(
-            model='gemini-2.5-flash', 
+            model=MODEL,
             contents='Reply "Gemini is Online" if you hear me.'
         )
         print(response.text)
