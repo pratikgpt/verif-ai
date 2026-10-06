@@ -7,7 +7,6 @@ import math
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from ai_engine import analyze_video
-import json
 import random
 import resend 
 from report_generator import generate_pdf # <--- We use the imported one!
@@ -18,9 +17,14 @@ url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 resend.api_key = os.environ.get("RESEND_API_KEY")
 DEFAULT_REPORT_EMAIL = os.environ.get("REPORT_EMAIL")  # used when an inspection has no client_email
+# Only these signed-in users can use the manager routes (comma-separated emails)
+ADMIN_EMAILS = {email.strip().lower() for email in os.environ.get("ADMIN_EMAILS", "").split(",") if email.strip()}
+if not ADMIN_EMAILS:
+    print("⚠️ ADMIN_EMAILS is empty, so nobody can use the manager routes.")
 
 # Global Settings
 max_distance = 500  # Meters
+max_video_size = 100 * 1024 * 1024  # Bytes (100 MB, about 5 minutes at the app's recording quality)
 
 # 2. Connect to Supabase
 supabase: Client = create_client(url, key)
@@ -39,21 +43,28 @@ app.add_middleware(
 # --- HELPER: Verify Admin (Supabase Auth) ---
 def verify_admin(authorization: str = Header(None)):
     """
-    Protects Admin Routes. 
+    Protects Admin Routes.
     Frontend must send header: 'Authorization: Bearer <access_token>'
+    The signed-in user's email must also be listed in ADMIN_EMAILS.
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Token")
-    
+
     try:
         token = authorization.replace("Bearer ", "")
         # Ask Supabase: "Is this token valid?"
-        user = supabase.auth.get_user(token)
-        if not user:
-             raise HTTPException(status_code=401, detail="Invalid Token")
-        return user
+        response = supabase.auth.get_user(token)
     except Exception as e:
         raise HTTPException(status_code=401, detail="Session Expired. Please Login Again.")
+
+    user = response.user if response else None
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    # A valid login isn't enough: anyone can create an account while Supabase sign-ups are on
+    if (user.email or "").lower() not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="This account is not a manager.")
+    return user
 
 # --- HELPER: Calculate Distance ---
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -163,6 +174,9 @@ def initiate_session(data: LocationCheck):
         raise HTTPException(status_code=404, detail="Case ID not found.")
     
     row = session_data.data[0]
+    if row.get("status") == "completed":
+        raise HTTPException(status_code=409, detail="This inspection is already complete.")
+
     target_lat = row.get("target_lat")
     target_long = row.get("target_long")
     exporter = row.get("exporter_name")
@@ -200,8 +214,30 @@ def initiate_session(data: LocationCheck):
 @app.post("/upload-video/{session_id}")
 async def upload_video(session_id: str, file: UploadFile = File(...)):
     try:
-        # A. Upload
-        file_content = await file.read()
+        # A. Fetch Data, and only accept a video after the GPS check and before a verdict
+        session_data = supabase.table("inspections").select("*").eq("case_id", session_id).execute()
+        if not session_data.data:
+            raise HTTPException(status_code=404, detail="Case ID not found.")
+
+        row = session_data.data[0]
+        if row.get("status") == "completed":
+            raise HTTPException(status_code=409, detail="This inspection is already complete.")
+        if row.get("status") not in ("processing", "failed"):
+            raise HTTPException(status_code=409, detail="Please verify your location before uploading.")
+        if not (file.content_type or "").startswith("video/"):
+            raise HTTPException(status_code=415, detail="Please upload a video file.")
+
+        expected_code = row.get("verification_code", "0000")
+        client_email = row.get("client_email") or DEFAULT_REPORT_EMAIL
+        lat = row.get("gps_lat", 0.0)
+        long = row.get("gps_long", 0.0)
+        product_type = row.get("product_type", "General Goods")
+        exporter_name = row.get("exporter_name", "Unknown")
+
+        # B. Upload (read one byte past the limit, to spot a file that's too big)
+        file_content = await file.read(max_video_size + 1)
+        if len(file_content) > max_video_size:
+            raise HTTPException(status_code=413, detail="The video is too large (100 MB max).")
         file_ext = file.filename.split(".")[-1]
         file_name = f"{session_id}_{uuid.uuid4()}.{file_ext}"
 
@@ -210,24 +246,19 @@ async def upload_video(session_id: str, file: UploadFile = File(...)):
 
         supabase.table("inspections").update({"video_url": public_url, "status": "processing"}).eq("case_id", session_id).execute()
 
-        # B. Fetch Data
-        session_data = supabase.table("inspections").select("*").eq("case_id", session_id).execute()
-        if not session_data.data: raise HTTPException(status_code=404)
-        
-        row = session_data.data[0]
-        expected_code = row.get("verification_code", "0000")
-        client_email = row.get("client_email") or DEFAULT_REPORT_EMAIL
-        lat = row.get("gps_lat", 0.0)
-        long = row.get("gps_long", 0.0)
-        product_type = row.get("product_type", "General Goods")
-        exporter_name = row.get("exporter_name", "Unknown")
-
         # C. AI Analysis
-        ai_result_json_str = analyze_video(public_url, expected_code, product_type)
-        try: ai_data = json.loads(ai_result_json_str)
-        except: ai_data = {"raw": ai_result_json_str}
+        ai_data = analyze_video(public_url, expected_code, product_type)
 
-        supabase.table("inspections").update({"status": "completed", "ai_result": ai_data}).eq("case_id", session_id).execute()
+        # The .neq() filters stop a late result from overwriting a case that was completed meanwhile
+        # (by another upload or a manual approval)
+        if "error" in ai_data:
+            # No certificate or email. The case stays open, so the exporter can upload again.
+            supabase.table("inspections").update({"status": "failed", "ai_result": ai_data}).eq("case_id", session_id).neq("status", "completed").execute()
+            raise HTTPException(status_code=500, detail="The AI check failed. Please try uploading again.")
+
+        saved = supabase.table("inspections").update({"status": "completed", "ai_result": ai_data}).eq("case_id", session_id).neq("status", "completed").execute()
+        if not saved.data:
+            raise HTTPException(status_code=409, detail="This inspection is already complete.")
 
         # D. Generate PDF
         report_url = None
@@ -248,6 +279,8 @@ async def upload_video(session_id: str, file: UploadFile = File(...)):
 
         return {"status": "success", "ai_verdict": ai_data, "report_url": report_url}
 
+    except HTTPException:
+        raise  # Keep our own status codes and messages
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

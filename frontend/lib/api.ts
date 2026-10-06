@@ -55,7 +55,7 @@ export interface InitiateSessionResponse {
 export interface Inspection {
   case_id: string
   created_at: string
-  status: string  // 'pending' | 'processing' | 'completed'
+  status: string  // 'pending' | 'processing' | 'completed' | 'failed'
   gps_lat?: number         // User's actual GPS location
   gps_long?: number
   target_lat?: number      // Target warehouse location (set by admin)

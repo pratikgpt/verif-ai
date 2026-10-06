@@ -69,6 +69,16 @@ const InspectionTable: React.FC<InspectionTableProps> = ({ inspections }) => {
       );
     }
 
+    // Failed = the AI check errored; the exporter can upload again
+    if (status === 'failed') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          AI Failed
+        </span>
+      );
+    }
+
     // Processing = AI is analyzing
     if (status === 'processing') {
       return (
