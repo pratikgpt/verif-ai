@@ -36,7 +36,7 @@ flowchart LR
 
 | Layer | Technology |
 |-------|------------|
-| Web app | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| Web app | Next.js 16, React 19, TypeScript, Tailwind CSS |
 | API | Python, FastAPI |
 | AI | Google Gemini 3.8 Flash (`google-genai`) |
 | Data, files and sign-in | Supabase (Postgres, Storage, Auth) |
@@ -65,7 +65,7 @@ Manager routes need an `Authorization: Bearer <Supabase access token>` header fr
 
 ## Running locally
 
-**Requirements:** Python 3.10+, Node.js 18.17+, a Supabase project, a Gemini API key and a Resend API key.
+**Requirements:** Python 3.10+, Node.js 20.9+, a Supabase project, a Gemini API key and a Resend API key.
 
 **1. Supabase.** Create two public storage buckets, `Videos` and `Reports`, add a manager user under Authentication and turn off new user sign-ups, and create the table the backend uses:
 
