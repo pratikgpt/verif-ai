@@ -7,7 +7,6 @@ import math
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from ai_engine import analyze_video
-import json
 import random
 import resend 
 from report_generator import generate_pdf # <--- We use the imported one!
@@ -223,9 +222,12 @@ async def upload_video(session_id: str, file: UploadFile = File(...)):
         exporter_name = row.get("exporter_name", "Unknown")
 
         # C. AI Analysis
-        ai_result_json_str = analyze_video(public_url, expected_code, product_type)
-        try: ai_data = json.loads(ai_result_json_str)
-        except: ai_data = {"raw": ai_result_json_str}
+        ai_data = analyze_video(public_url, expected_code, product_type)
+
+        if "error" in ai_data:
+            # No certificate or email. The case stays open, so the exporter can upload again.
+            supabase.table("inspections").update({"status": "failed", "ai_result": ai_data}).eq("case_id", session_id).execute()
+            raise HTTPException(status_code=500, detail="The AI check failed. Please try uploading again.")
 
         supabase.table("inspections").update({"status": "completed", "ai_result": ai_data}).eq("case_id", session_id).execute()
 
@@ -248,6 +250,8 @@ async def upload_video(session_id: str, file: UploadFile = File(...)):
 
         return {"status": "success", "ai_verdict": ai_data, "report_url": report_url}
 
+    except HTTPException:
+        raise  # Keep our own status codes and messages
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

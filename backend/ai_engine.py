@@ -1,5 +1,6 @@
 
 import os
+import json
 import time
 import requests
 from google import genai
@@ -18,8 +19,9 @@ MODEL = "gemini-3.8-flash"
 
 def analyze_video(video_url, expected_code, product_name="General Stock"):
     """
-    Downloads video from Supabase -> Sends to Gemini -> Returns JSON Verdict
+    Downloads video from Supabase -> Sends to Gemini -> Returns the verdict as a dict
     Now supports DYNAMIC Product Verification (Rice, Electronics, etc.)
+    If anything fails, returns {"error": "..."} instead.
     """
     print(f"Downloading video from: {video_url}...")
     temp_filename = f"temp_{int(time.time())}.mp4"
@@ -118,27 +120,32 @@ def analyze_video(video_url, expected_code, product_name="General Stock"):
                 ]
             )
             
-            print(f"AI Response Received: {response.text[:50]}...") 
-            
+            print(f"AI Response Received: {response.text[:50]}...")
+
             # Clean up JSON (Remove markdown backticks if present)
             clean_json = response.text.replace("```json", "").replace("```", "").strip()
-            
-            # Cleanup Local File
-            if os.path.exists(temp_filename):
-                os.remove(temp_filename)
-                
-            return clean_json
+
+            # F. Parse the verdict, and treat anything without a verification_status as a failure
+            try:
+                verdict = json.loads(clean_json)
+            except json.JSONDecodeError:
+                verdict = None
+            if not isinstance(verdict, dict) or "verification_status" not in verdict:
+                return {"error": "AI response was not a valid verdict.", "raw": clean_json}
+            return verdict
 
         except Exception as e:
             print(f"CRITICAL AI ERROR: {e}")
             return {"error": f"AI Generation Failed: {str(e)}"}
 
     except Exception as e:
-        # Cleanup even if error
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
         print(f"General Error: {e}")
         return {"error": str(e)}
+
+    finally:
+        # Cleanup local file, whether the audit worked or not
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
 # QUICK TESTER 
 if __name__ == "__main__":
